@@ -1,0 +1,48 @@
+# Task T015 — Expand quality gates (contract hardening)
+
+## Context
+
+Quality gates are the merge firewall. Expand gates beyond repo structure so the contract surface is hard to drift:
+- protocol completeness
+- workstreams completeness
+- task hygiene
+
+## Assignment
+
+- Workstream: control-plane
+- Owner (agent/human):
+- Suggested branch/worktree name: `T015_expand_quality_gates`
+- Allowed paths (edit/write): `scripts/`, `docs/`, `.orchestrator/`
+- Disallowed paths: `data/raw/` (append-only)
+- Stop conditions (escalate + block with `@human`):
+  - Any proposed gate that requires network calls or non-deterministic behavior
+
+## Inputs
+
+- `scripts/quality_gates.py`
+
+## Outputs
+
+- Expanded `scripts/quality_gates.py` gates:
+  - protocol completeness
+  - workstreams completeness
+  - task hygiene
+
+## Success Criteria
+
+- [x] Gates are fast and deterministic
+- [x] Failures are actionable
+- [x] `make gate` passes
+
+## Validation / Commands
+
+- `make gate`
+
+## Status
+
+- State: done
+- Last updated: 2026-01-21
+
+## Notes / Decisions
+
+- 2026-01-21: Implemented protocol/workstreams/task hygiene gates in `scripts/quality_gates.py`.

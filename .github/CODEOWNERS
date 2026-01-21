@@ -1,0 +1,6 @@
+# Measurement-critical artifacts
+docs/protocol.md @AysajanE
+.orchestrator/ @AysajanE
+registry/ @AysajanE
+data/schemas/ @AysajanE
+scripts/quality_gates.py @AysajanE

@@ -1,14 +1,16 @@
 """Quality gates for the research pipeline.
 
-This file is intentionally a stub. Add checks as your pipeline grows.
-
-Design principle: gates should be *fast* and *deterministic*.
+Design principles:
+- fast (target: <30s locally)
+- deterministic (no web calls, no randomness)
+- actionable failures (clear next step)
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 
 
 @dataclass
@@ -16,20 +18,152 @@ class GateResult:
     ok: bool
     details: dict[str, object]
 
+VALID_TASK_STATES = {"backlog", "active", "blocked", "ready_for_review", "done"}
+
+
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _section_has_content(text: str, heading: str) -> bool:
+    match = re.search(rf"^##\s+{re.escape(heading)}\s*$", text, flags=re.MULTILINE)
+    if match is None:
+        return False
+    after = text[match.end() :]
+    for line in after.splitlines():
+        if line.startswith("## "):
+            return False
+        if line.strip() == "":
+            continue
+        if re.search(r"[A-Za-z0-9]", line):
+            return True
+    return False
+
 
 def gate_repo_structure() -> GateResult:
     required = [
         Path("docs/protocol.md"),
         Path("AGENTS.md"),
+        Path("CLAUDE.md"),
         Path(".orchestrator"),
+        Path(".orchestrator/workstreams.md"),
+        Path("scripts/quality_gates.py"),
     ]
     missing = [str(p) for p in required if not p.exists()]
     return GateResult(ok=(len(missing) == 0), details={"missing": missing})
 
 
+def gate_protocol_complete() -> GateResult:
+    path = Path("docs/protocol.md")
+    if not path.exists():
+        return GateResult(ok=False, details={"missing": str(path)})
+    text = _read_text(path)
+
+    failures: list[str] = []
+
+    for field in ("Name", "Formula", "Units"):
+        if re.search(rf"^\s*-\s*{field}:\s*$", text, flags=re.MULTILINE):
+            failures.append(f"primary_metric_{field.lower()}_blank")
+
+    required_sections = [
+        "Rollup inclusion criteria",
+        "Data source priority",
+        "Known regime dates",
+        "Validation tolerances",
+    ]
+    for heading in required_sections:
+        if not _section_has_content(text, heading):
+            failures.append(f"missing_or_empty_section:{heading}")
+
+    return GateResult(ok=(len(failures) == 0), details={"failures": failures})
+
+
+def gate_workstreams_complete() -> GateResult:
+    path = Path(".orchestrator/workstreams.md")
+    if not path.exists():
+        return GateResult(ok=False, details={"missing": str(path)})
+    text = _read_text(path)
+
+    failures: list[str] = []
+    rows_checked = 0
+    for line in text.splitlines():
+        if not re.match(r"^\|\s*W\d+\s+", line):
+            continue
+        rows_checked += 1
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 6:
+            failures.append(f"malformed_row:{line.strip()}")
+            continue
+
+        workstream = cells[0]
+        purpose = cells[1]
+        owns_paths = cells[2]
+        does_not_own = cells[3]
+
+        if purpose == "":
+            failures.append(f"blank_purpose:{workstream}")
+        if owns_paths == "":
+            failures.append(f"blank_owns_paths:{workstream}")
+        if does_not_own == "":
+            failures.append(f"blank_does_not_own:{workstream}")
+
+    if rows_checked == 0:
+        failures.append("no_workstream_rows_found")
+
+    return GateResult(ok=(len(failures) == 0), details={"failures": failures})
+
+
+def gate_task_hygiene() -> GateResult:
+    failures: list[str] = []
+    task_dirs = [
+        Path(".orchestrator/backlog"),
+        Path(".orchestrator/active"),
+        Path(".orchestrator/blocked"),
+        Path(".orchestrator/done"),
+    ]
+
+    task_files: list[Path] = []
+    for task_dir in task_dirs:
+        if not task_dir.exists():
+            failures.append(f"missing_dir:{task_dir}")
+            continue
+        for p in task_dir.glob("*.md"):
+            if p.name == "README.md":
+                continue
+            task_files.append(p)
+
+    for path in sorted(task_files):
+        text = _read_text(path)
+
+        for heading in ("## Status", "## Notes / Decisions"):
+            if heading not in text:
+                failures.append(f"{path}:missing_heading:{heading}")
+
+        state_match = re.search(r"^\s*-\s*State:\s*(.+)\s*$", text, flags=re.MULTILINE)
+        if state_match is None:
+            failures.append(f"{path}:missing_state")
+        else:
+            state = state_match.group(1).strip()
+            if state not in VALID_TASK_STATES:
+                failures.append(f"{path}:invalid_state:{state}")
+
+        updated_match = re.search(
+            r"^\s*-\s*Last updated:\s*(\d{4}-\d{2}-\d{2})\s*$",
+            text,
+            flags=re.MULTILINE,
+        )
+        if updated_match is None:
+            failures.append(f"{path}:missing_last_updated")
+
+    return GateResult(ok=(len(failures) == 0), details={"failures": failures})
+
+
 def main() -> None:
     results = {
         "repo_structure": gate_repo_structure(),
+        "protocol_complete": gate_protocol_complete(),
+        "workstreams_complete": gate_workstreams_complete(),
+        "task_hygiene": gate_task_hygiene(),
     }
     ok = all(r.ok for r in results.values())
     for name, r in results.items():

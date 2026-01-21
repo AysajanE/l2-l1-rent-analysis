@@ -1,0 +1,48 @@
+# Task T005 — Define workstreams + ownership boundaries
+
+## Context
+
+Parallel work only scales when ownership boundaries are explicit. Define workstreams and which paths/artifacts each workstream owns.
+
+## Assignment
+
+- Workstream: W0 Protocol (coordination)
+- Owner (agent/human):
+- Suggested branch/worktree name: `w0-workstreams`
+- Allowed paths (edit/write): `.orchestrator/`, `docs/`
+- Disallowed paths: `data/raw/` (append-only)
+- Stop conditions (escalate + block with `@human`):
+  - Any dispute about which workstream owns a shared artifact (schemas, registries, definitions)
+
+## Inputs
+
+- `.orchestrator/templates/workstreams_template.md`
+- `docs/end_to_end_research_plan.md` (phase decomposition)
+
+## Outputs
+
+- Updated `.orchestrator/workstreams.md` with:
+  - Workstream names
+  - “Owns paths” / “Does NOT own” rules
+  - Expected outputs per workstream
+  - Quality gates per workstream (even if stubbed initially)
+
+## Success Criteria
+
+- [ ] Workstreams cover the full research lifecycle end-to-end
+- [ ] Ownership boundaries are strict enough to prevent clashes
+- [ ] `make gate` passes
+
+## Validation / Commands
+
+- `make gate`
+
+## Status
+
+- State: done
+- Last updated: 2026-01-21
+
+## Notes / Decisions
+
+- 2026-01-21: Task created (bootstrap).
+- 2026-01-21: Populated `.orchestrator/workstreams.md` with initial workstreams and ownership boundaries.
