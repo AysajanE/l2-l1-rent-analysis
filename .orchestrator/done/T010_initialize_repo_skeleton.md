@@ -1,3 +1,35 @@
+---
+task_id: T010
+title: "Initialize reusable repo skeleton"
+workstream: W0
+role: Worker
+priority: high
+dependencies: [T000, T005]
+allowed_paths:
+  - ".orchestrator/"
+  - "docs/"
+  - "contracts/"
+  - "scripts/"
+  - "src/"
+  - "data/"
+  - "reports/"
+  - ".github/"
+  - "AGENTS.md"
+  - "CLAUDE.md"
+disallowed_paths:
+  - "data/raw/"
+outputs:
+  - ".orchestrator/"
+  - "contracts/"
+  - "reports/"
+  - "src/"
+  - ".github/CODEOWNERS"
+gates:
+  - "make gate"
+stop_conditions:
+  - "Request to store large artifacts in git"
+---
+
 # Task T010 — Initialize reusable repo skeleton
 
 ## Context

@@ -1,3 +1,24 @@
+---
+task_id: T005
+title: "Define workstreams + ownership boundaries"
+workstream: W0
+role: Worker
+priority: high
+dependencies: [T000]
+allowed_paths:
+  - ".orchestrator/"
+  - "docs/"
+disallowed_paths:
+  - "data/raw/"
+outputs:
+  - ".orchestrator/workstreams.md"
+gates:
+  - "make gate"
+stop_conditions:
+  - "Ownership dispute"
+  - "Need to edit outside allowed paths"
+---
+
 # Task T005 — Define workstreams + ownership boundaries
 
 ## Context

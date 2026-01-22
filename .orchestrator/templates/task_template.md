@@ -1,3 +1,23 @@
+---
+task_id: T___
+title: "<title>"
+workstream: W__
+role: Worker
+priority: medium
+dependencies: []
+allowed_paths:
+  - "<path>/"
+disallowed_paths:
+  - "data/raw/"
+outputs:
+  - "<output path>"
+gates:
+  - "make gate"
+stop_conditions:
+  - "Contract ambiguity"
+  - "Need credentials"
+---
+
 # Task T___ — <title>
 
 ## Context

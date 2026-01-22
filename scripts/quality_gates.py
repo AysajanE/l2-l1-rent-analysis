@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
+import platform
+import sys
 
 
 @dataclass
@@ -20,6 +22,8 @@ class GateResult:
 
 VALID_TASK_STATES = {"backlog", "active", "blocked", "ready_for_review", "done"}
 VALID_PROJECT_MODES = {"empirical", "modeling", "hybrid"}
+VALID_TASK_ROLES = {"Planner", "Worker", "Judge"}
+VALID_TASK_PRIORITIES = {"low", "medium", "high"}
 
 
 def _read_text(path: Path) -> str:
@@ -44,6 +48,66 @@ def _parse_project_mode(path: Path) -> str | None:
     return None
 
 
+def _parse_task_frontmatter(text: str) -> dict[str, object] | None:
+    """Parse a minimal YAML frontmatter block (no external YAML dependency).
+
+    Supports:
+    - `key: value`
+    - `key: [a, b]`
+    - `key:` followed by indented `- item` lines
+    """
+    lines = text.splitlines()
+    if len(lines) < 3 or lines[0].strip() != "---":
+        return None
+    end_idx = None
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            end_idx = i
+            break
+    if end_idx is None:
+        return None
+
+    data: dict[str, object] = {}
+    current_list_key: str | None = None
+    for raw_line in lines[1:end_idx]:
+        line = raw_line.split("#", 1)[0].rstrip()
+        if line.strip() == "":
+            continue
+
+        list_item_match = re.match(r"^\s*-\s+(.*)\s*$", line)
+        if current_list_key is not None and list_item_match is not None:
+            item = list_item_match.group(1).strip().strip("'\"")
+            current_list = data.get(current_list_key)
+            if isinstance(current_list, list):
+                current_list.append(item)
+            continue
+
+        current_list_key = None
+        if ":" not in line:
+            continue
+        key, rest = line.split(":", 1)
+        key = key.strip()
+        rest = rest.strip()
+
+        if rest == "":
+            data[key] = []
+            current_list_key = key
+            continue
+
+        if rest.startswith("[") and rest.endswith("]"):
+            inner = rest[1:-1].strip()
+            if inner == "":
+                data[key] = []
+            else:
+                items = [x.strip().strip("'\"") for x in inner.split(",") if x.strip()]
+                data[key] = items
+            continue
+
+        data[key] = rest.strip("'\"")
+
+    return data
+
+
 def _section_has_content(text: str, heading: str) -> bool:
     match = re.search(rf"^##\s+{re.escape(heading)}\s*$", text, flags=re.MULTILINE)
     if match is None:
@@ -65,13 +129,22 @@ def gate_repo_structure() -> GateResult:
         Path("CLAUDE.md"),
         Path("contracts"),
         Path("contracts/AGENTS.md"),
+        Path("contracts/CHANGELOG.md"),
+        Path("contracts/assumptions.md"),
+        Path("contracts/decisions.md"),
         Path("contracts/project.yaml"),
+        Path("contracts/schemas"),
+        Path("contracts/instances/benchmark_small"),
         Path("docs"),
         Path(".orchestrator"),
         Path(".orchestrator/AGENTS.md"),
         Path(".orchestrator/workstreams.md"),
+        Path("data"),
+        Path("data/AGENTS.md"),
+        Path("data/samples"),
         Path("reports"),
         Path("reports/AGENTS.md"),
+        Path("reports/catalog.yaml"),
         Path("scripts/quality_gates.py"),
         Path("scripts/AGENTS.md"),
         Path("src"),
@@ -91,6 +164,37 @@ def gate_project_contract() -> GateResult:
     if mode not in VALID_PROJECT_MODES:
         return GateResult(ok=False, details={"failures": [f"invalid_mode:{mode}"]})
     return GateResult(ok=True, details={"mode": mode})
+
+
+def gate_environment() -> GateResult:
+    """Validate that a pinned environment spec exists and report runtime versions."""
+    env_spec_candidates = [
+        Path("pyproject.toml"),
+        Path("requirements.txt"),
+        Path("requirements-dev.txt"),
+        Path("environment.yml"),
+        Path(".python-version"),
+        Path(".devcontainer/devcontainer.json"),
+    ]
+    present = [str(p) for p in env_spec_candidates if p.exists()]
+    if len(present) == 0:
+        return GateResult(ok=False, details={"missing": [str(p) for p in env_spec_candidates]})
+
+    python_version_file = Path(".python-version")
+    pinned_python = None
+    if python_version_file.exists():
+        pinned_python = _read_text(python_version_file).strip() or None
+
+    return GateResult(
+        ok=True,
+        details={
+            "present_env_specs": present,
+            "python_version": sys.version.split()[0],
+            "python_implementation": platform.python_implementation(),
+            "platform": platform.platform(),
+            "pinned_python": pinned_python,
+        },
+    )
 
 
 def gate_protocol_complete() -> GateResult:
@@ -215,6 +319,44 @@ def gate_task_hygiene() -> GateResult:
     for path in sorted(task_files):
         text = _read_text(path)
 
+        frontmatter = _parse_task_frontmatter(text)
+        if frontmatter is None:
+            failures.append(f"{path}:missing_yaml_frontmatter")
+        else:
+            required_keys = [
+                "task_id",
+                "title",
+                "workstream",
+                "role",
+                "priority",
+                "dependencies",
+                "allowed_paths",
+                "disallowed_paths",
+                "outputs",
+                "gates",
+                "stop_conditions",
+            ]
+            for key in required_keys:
+                if key not in frontmatter:
+                    failures.append(f"{path}:frontmatter_missing_key:{key}")
+
+            task_id = frontmatter.get("task_id")
+            if isinstance(task_id, str):
+                if not path.name.startswith(task_id):
+                    failures.append(f"{path}:frontmatter_task_id_mismatch:{task_id}")
+
+            workstream = frontmatter.get("workstream")
+            if isinstance(workstream, str) and not re.fullmatch(r"W\d+", workstream):
+                failures.append(f"{path}:invalid_workstream:{workstream}")
+
+            role = frontmatter.get("role")
+            if isinstance(role, str) and role not in VALID_TASK_ROLES:
+                failures.append(f"{path}:invalid_role:{role}")
+
+            priority = frontmatter.get("priority")
+            if isinstance(priority, str) and priority not in VALID_TASK_PRIORITIES:
+                failures.append(f"{path}:invalid_priority:{priority}")
+
         for heading in ("## Status", "## Notes / Decisions"):
             if heading not in text:
                 failures.append(f"{path}:missing_heading:{heading}")
@@ -242,6 +384,7 @@ def main() -> None:
     results = {
         "repo_structure": gate_repo_structure(),
         "project_contract": gate_project_contract(),
+        "environment": gate_environment(),
         "protocol_complete": gate_protocol_complete(),
         "model_spec_complete": gate_model_spec_complete(),
         "workstreams_complete": gate_workstreams_complete(),

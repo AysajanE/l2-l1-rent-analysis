@@ -9,6 +9,7 @@ This directory contains canonical specs. Downstream work must not reinterpret th
   - rationale
   - expected downstream impact
   - version bump if interfaces change
+  - entry in `contracts/CHANGELOG.md`
 
 ## No implicit changes
 

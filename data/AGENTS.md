@@ -17,3 +17,7 @@ Every raw snapshot must have a corresponding manifest entry:
 - date fetched (UTC)
 - command used
 - file list + hashes (sha256)
+
+## Golden samples
+
+Small, tracked sample datasets live in `data/samples/` and are used for fast tests and gates.

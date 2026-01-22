@@ -1,3 +1,29 @@
+---
+task_id: T015
+title: "Expand quality gates (contract hardening)"
+workstream: W0
+role: Worker
+priority: high
+dependencies: [T010]
+allowed_paths:
+  - "scripts/"
+  - "docs/"
+  - ".orchestrator/"
+  - "contracts/"
+  - "reports/"
+  - "src/"
+  - "Makefile"
+disallowed_paths:
+  - "data/raw/"
+outputs:
+  - "scripts/quality_gates.py"
+gates:
+  - "make gate"
+stop_conditions:
+  - "Gate requires network calls"
+  - "Non-deterministic behavior required"
+---
+
 # Task T015 — Expand quality gates (contract hardening)
 
 ## Context

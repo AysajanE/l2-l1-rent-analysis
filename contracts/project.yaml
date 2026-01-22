@@ -7,6 +7,7 @@ primary_outputs:
 risk_policy:
   stop_conditions:
     - "definition ambiguity"
+    - "new assumption required"
     - "missing credentials"
     - "validation failure beyond tolerance"
     - "need to edit outside allowed paths"

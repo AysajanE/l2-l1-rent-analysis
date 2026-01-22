@@ -1,3 +1,23 @@
+---
+task_id: T000
+title: "Protocol lock (definitions first)"
+workstream: W0
+role: Worker
+priority: high
+dependencies: []
+allowed_paths:
+  - "docs/"
+disallowed_paths:
+  - "data/raw/"
+outputs:
+  - "docs/protocol.md"
+gates:
+  - "make gate"
+stop_conditions:
+  - "Definition ambiguity"
+  - "Need to edit outside allowed paths"
+---
+
 # Task T000 — Protocol lock (definitions first)
 
 ## Context

@@ -1,6 +1,6 @@
 # Autonomous Agentic Research Workflow (Reusable Architecture + Roadmap)
 
-This document defines a reusable, file-based workflow for running multiple AI coding/research agents in parallel on empirical research projects with minimal conflict and minimal human babysitting.
+This document defines a reusable, file-based workflow for running multiple AI coding/research agents in parallel on research projects (empirical, modeling, or hybrid) with minimal conflict and minimal human babysitting.
 
 It is designed to work with **subscription CLIs/IDEs** (e.g., Claude Code, Codex CLI) and does **not** assume API-based agent frameworks.
 
@@ -14,6 +14,8 @@ It is designed to work with **subscription CLIs/IDEs** (e.g., Claude Code, Codex
 - Not building a complex “agents talk to each other” system.
 - Not relying on shared chat as the coordination substrate.
 - Not attempting fully automated merges without quality gates.
+
+Terminology: “Contracts & locks” refers to canonical specs. For empirical projects, the protocol lock is implemented as `docs/protocol.md` plus schema contracts under `contracts/`.
 
 ---
 
@@ -72,6 +74,10 @@ Everything important must live on disk in version control:
    - Empirical: metrics, units, inclusion criteria, regimes, tolerances.
    - Modeling: notation, variables, constraints/objective, assumptions, regimes, solver config, evaluation metrics.
    - The contract files are the highest-authority reference for downstream tasks.
+   - Contracts are **versioned**. Interface-breaking changes require:
+     - version bump (e.g., `panel_schema_v2.yaml`)
+     - a migration note (`contracts/CHANGELOG.md`)
+     - explicit downstream task updates (or new tasks created by Planner)
 
 3. **Workstreams + ownership boundaries**
    - Workstream definitions (“who owns what”).
@@ -93,15 +99,26 @@ Everything important must live on disk in version control:
      - file list + hashes (sha256)
      - software environment fingerprint (version info)
 
-7. **Quality gates**
+7. **Results catalog**
+   - A single index of key outputs and how to reproduce them.
+   - Recommended location: `reports/catalog.yaml` (or `reports/catalog.md`) listing:
+     - artifact path(s)
+     - generating command
+     - manifest path
+     - git commit/PR reference
+
+8. **Quality gates**
    - Deterministic checks that run fast (structure checks, contract checks, unit tests, basic sanity).
 
 ### Gate layers (recommended)
 1) Structure gates: required files/dirs exist
 2) Contract gates: protocol/model spec complete (no TODO stubs)
 3) Task hygiene gates: valid task states/required sections
-4) Repro gates: can rebuild key artifacts deterministically
-5) Scientific sanity gates: domain-specific invariants (identities, constraints feasibility, baseline replication)
+4) Environment gates: pinned environment spec exists; print version info (python/deps/solvers)
+5) Repro gates: can rebuild key artifacts deterministically
+6) Scientific sanity gates: domain-specific invariants (identities, constraints feasibility, baseline replication)
+
+Rule of thumb: gates should run on **golden samples** only (`data/samples/` or small benchmark instances). Full builds/runs belong in separate targets.
 
 ---
 
@@ -153,6 +170,7 @@ primary_outputs:
 risk_policy:
   stop_conditions:
     - "definition ambiguity"
+    - "new assumption required"
     - "missing credentials"
     - "validation failure beyond tolerance"
 ```
@@ -189,6 +207,16 @@ Model spec template:
 - artifact paths
 - evaluation metrics
 ```
+
+### 4.5.4 Assumptions and decisions (universal)
+
+Modeling projects accumulate assumptions; empirical projects do too. To prevent silent creep:
+
+- `contracts/assumptions.md` — assumption registry
+- `contracts/decisions.md` — chronological decision log
+
+Policy:
+- If an agent needs a new assumption, it must propose it in the assumption registry (and block with `@human` if it is a scientific choice).
 
 ---
 
@@ -275,6 +303,13 @@ To run unattended you need:
 - `contracts/` directory with templates (canonical specs live here)
 - `reports/` directory baseline (predictable, reviewable outputs)
 - Provenance manifest conventions (every “result” has a manifest + repro command)
+- Pinned environment spec (choose one per project):
+  - Python: `pyproject.toml` + lock (`uv.lock`/`poetry.lock`) or `requirements.txt` (prefer hashes)
+  - Modeling with solvers: solver versions pinned and recorded
+  - Optional: `devcontainer.json` for sandboxed execution
+- Golden samples for fast tests:
+  - Empirical: `data/samples/` (tiny tracked slices)
+  - Modeling: `contracts/instances/benchmark_small/` (tiny tracked instances)
 - Nested `AGENTS.md` files in sensitive directories (control plane, contracts, scripts, src, reports)
 - `docs/protocol.md` protocol lock (or `contracts/model_spec.*` for modeling projects)
 - `make gate` runs fast and deterministically
@@ -294,6 +329,7 @@ To run unattended you need:
 - Workstreams filled in `.orchestrator/workstreams.md`
 - Worktrees/branches per task
 - Judge process (human or agent) running gates and merging
+- Optional but recommended: CI runs `make gate` (and lightweight tests if present) on PRs
 
 **Success**
 - Multiple tasks progress in parallel without file conflicts or definition drift.
@@ -313,6 +349,24 @@ To run unattended you need:
   - launch headless workers,
   - collect outputs + update task status.
 
+**Task metadata requirement (for automation)**
+- Every task file must include **YAML frontmatter** (machine-readable metadata) before the Markdown body.
+
+**Dependency/readiness model (for automation)**
+
+A task is **ready** if:
+- `State: backlog`
+- all `dependencies` listed in YAML frontmatter are in `done/` (or have `State: done`)
+- required contract files exist and contract gates pass
+
+If a dependency or required contract is missing:
+- Planner marks the task `blocked` and records the minimal `@human` decision needed.
+
+**Drift control (start here, not Stage 4)**
+- Workers are timeboxed per task (e.g., 90–180 minutes). If not done:
+  - set `State: blocked` and write a minimal next-step recommendation
+- Prefer “short runs, frequent merges” over week-long monolithic agent sessions.
+
 **Success**
 - Overnight progress without manual task launching.
 
@@ -330,6 +384,10 @@ To run unattended you need:
   - re-run gates,
   - reopen tasks as blocked with actionable notes,
   - produce a daily summary.
+
+**Drift control (continuous)**
+- Restart worker sessions periodically (e.g., if >N hours since last successful gate).
+- Prefer “fresh starts” after merges: re-read contracts + tasks from disk each cycle.
 
 **Success**
 - System runs continuously and only pings you for true decision points.
