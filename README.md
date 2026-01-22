@@ -31,6 +31,7 @@ This template is a lightweight, *file-based* orchestration system for running mu
 ## Runbook
 
 See `docs/runbook_swarm.md`.
+Automation (tmux supervisor loop): `docs/runbook_swarm_automation.md`.
 
 ## Safety defaults
 - Don’t run “auto-approve everything” on your laptop.

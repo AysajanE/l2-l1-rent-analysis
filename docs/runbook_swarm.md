@@ -2,6 +2,8 @@
 
 This is the “golden path” for running a Planner + multiple Workers + a Judge using this repo template.
 
+For unattended automation (tmux supervisor loop), see `docs/runbook_swarm_automation.md`.
+
 ## Prereqs
 
 - Work in a sandboxed environment (VM/devcontainer/Codespaces) containing only this repo.
