@@ -5,7 +5,7 @@ This directory is the repo’s coordination layer.
 ## Who may change what
 
 - **Planner only**:
-  - moves tasks across folders (`backlog/`, `active/`, `blocked/`, `done/`)
+  - moves tasks across folders (`backlog/`, `active/`, `ready_for_review/`, `blocked/`, `done/`)
   - edits `workstreams.md`
   - edits anything in `templates/`
 - **Worker may**:

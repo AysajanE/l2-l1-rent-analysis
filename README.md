@@ -14,18 +14,30 @@ This template is a lightweight, *file-based* orchestration system for running mu
 ## Directory layout
 - `.orchestrator/` — task queue + state (single source of truth)
 - `docs/` — protocol, definitions, data dictionary
+- `contracts/` — canonical specs (schemas/model spec/assumptions/decisions)
 - `src/` — ETL, validation, analysis
-- `data/` — raw/processed/schemas (keep large artifacts out of git)
+- `data/` — raw/processed + tracked provenance manifests (keep large artifacts out of git)
 
 ## Minimal operating procedure
-1. Fill `docs/protocol.md` and `data/schemas/` (Phase 0).
+1. Fill project contracts (Phase 0):
+   - Empirical/hybrid: `docs/protocol.md` + `contracts/schemas/panel_schema.yaml`
+   - Modeling/hybrid: `contracts/model_spec.*` + `contracts/instances/benchmark_small/`
 2. Planner creates tasks in `.orchestrator/backlog/` with success criteria.
 3. Start multiple Workers (tmux panes) and assign each a task file.
 4. Worker opens PR (or commits to its branch).
 5. Judge runs `make gate` and reviews diff vs success criteria.
 6. Merge + repeat.
 
+## Runbook
+
+See `docs/runbook_swarm.md`.
+
 ## Safety defaults
 - Don’t run “auto-approve everything” on your laptop.
 - Prefer a sandboxed environment (Codespaces/VM/devcontainer).
 - Restrict file access and dangerous shell commands where possible.
+
+## Practical notes
+
+- Run your agent CLI from the correct worktree directory so nested `AGENTS.md` rules are applied.
+- Hosted environments may stop after inactivity by default; verify timeouts before relying on overnight runs.

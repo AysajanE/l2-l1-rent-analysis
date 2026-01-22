@@ -9,7 +9,8 @@ This directory is the **single source of truth** for multi-agent coordination in
    - `## Status`
    - `## Notes / Decisions`
 3. The Planner periodically **sweeps** task files and moves them between:
-   - `backlog/ → active/ → blocked/ → done/`
+   - `backlog/ → active/ → ready_for_review/ → done/` (happy path)
+   - `backlog/ → active/ → blocked/` (blocked path)
    based on the task’s `State:`.
 
 ## Rules (mirrors `AGENTS.md`)
@@ -31,8 +32,15 @@ to be “real-time.” Status becomes visible when branches are pushed/PR’d (o
 
 - `backlog/` — tasks not yet started
 - `active/` — tasks currently being worked
+- `ready_for_review/` — tasks awaiting Judge verification
 - `blocked/` — blocked tasks (must include blocker note)
 - `done/` — completed tasks
 - `handoff/` — cross-task notes and integration hints
 - `templates/` — task + handoff templates
 - `workstreams.md` — project workstream definitions + ownership boundaries
+
+## Templates
+
+- Generic task: `.orchestrator/templates/task_template.md`
+- W0 protocol/contracts tasks: `.orchestrator/templates/task_template_w0_protocol.md`
+- W1/W2 ETL tasks: `.orchestrator/templates/task_template_w1_w2_etl.md`

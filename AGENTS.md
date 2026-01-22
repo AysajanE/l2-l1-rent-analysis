@@ -16,9 +16,10 @@ Default role if unclear: **Worker**.
 When guidance conflicts, follow this order:
 
 1) `docs/protocol.md` (Protocol Lock) — highest authority
-2) `.orchestrator/workstreams.md` (ownership boundaries)
-3) the task file you are assigned (I/O + success criteria)
-4) `.orchestrator/handoff/*` notes
+2) `contracts/*` (schemas, assumptions, decisions)
+3) `.orchestrator/workstreams.md` (ownership boundaries)
+4) the task file you are assigned (I/O + success criteria)
+5) `.orchestrator/handoff/*` notes
 
 If a conflict remains: STOP and mark the task `blocked` with `@human`.
 
@@ -30,7 +31,7 @@ If a conflict remains: STOP and mark the task `blocked` with `@human`.
 5) **No “helpful refactors”** outside task scope.
 
 ## 3) Control-plane rules (.orchestrator)
-- **Only the Planner moves tasks** between `.orchestrator/{backlog,active,blocked,done}/`.
+- **Only the Planner moves tasks** between `.orchestrator/{backlog,active,ready_for_review,blocked,done}/`.
 - **Workers only edit** their task file’s:
   - `## Status`
   - `## Notes / Decisions`

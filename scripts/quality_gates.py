@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import platform
 import sys
+import json
 
 
 @dataclass
@@ -134,10 +135,10 @@ def gate_repo_structure() -> GateResult:
         Path("contracts/decisions.md"),
         Path("contracts/project.yaml"),
         Path("contracts/schemas"),
-        Path("contracts/instances/benchmark_small"),
         Path("docs"),
         Path(".orchestrator"),
         Path(".orchestrator/AGENTS.md"),
+        Path(".orchestrator/ready_for_review"),
         Path(".orchestrator/workstreams.md"),
         Path("data"),
         Path("data/AGENTS.md"),
@@ -149,9 +150,27 @@ def gate_repo_structure() -> GateResult:
         Path("scripts/AGENTS.md"),
         Path("src"),
         Path("src/AGENTS.md"),
+        Path("tests"),
     ]
+    mode = _parse_project_mode(Path("contracts/project.yaml"))
+    if mode in {"empirical", "hybrid"}:
+        required.extend(
+            [
+                Path("docs/protocol.md"),
+                Path("contracts/schemas/panel_schema.yaml"),
+            ]
+        )
+    if mode in {"modeling", "hybrid"}:
+        required.extend(
+            [
+                Path("contracts/instances"),
+                Path("contracts/instances/benchmark_small"),
+                Path("contracts/experiments"),
+                Path("src/model"),
+            ]
+        )
     missing = [str(p) for p in required if not p.exists()]
-    return GateResult(ok=(len(missing) == 0), details={"missing": missing})
+    return GateResult(ok=(len(missing) == 0), details={"mode": mode, "missing": missing})
 
 
 def gate_project_contract() -> GateResult:
@@ -302,6 +321,7 @@ def gate_task_hygiene() -> GateResult:
     task_dirs = [
         Path(".orchestrator/backlog"),
         Path(".orchestrator/active"),
+        Path(".orchestrator/ready_for_review"),
         Path(".orchestrator/blocked"),
         Path(".orchestrator/done"),
     ]
@@ -380,6 +400,81 @@ def gate_task_hygiene() -> GateResult:
     return GateResult(ok=(len(failures) == 0), details={"failures": failures})
 
 
+def gate_raw_manifest_validity() -> GateResult:
+    """Validate any tracked raw provenance manifests under data/raw_manifest/.
+
+    This does not require raw snapshots to be present or hashed during gating;
+    it only validates that any committed manifest JSON files are well-formed and
+    include required keys.
+    """
+    failures: list[str] = []
+    manifest_dir = Path("data/raw_manifest")
+    if not manifest_dir.exists():
+        return GateResult(ok=False, details={"missing": str(manifest_dir)})
+
+    manifest_paths = sorted(manifest_dir.glob("*.json"))
+    required_top_keys = {"source", "fetched_at_utc", "command", "files"}
+    required_file_keys = {"path", "sha256", "bytes"}
+
+    for path in manifest_paths:
+        try:
+            data = json.loads(_read_text(path))
+        except json.JSONDecodeError as exc:
+            failures.append(f"{path}:invalid_json:{exc}")
+            continue
+
+        if not isinstance(data, dict):
+            failures.append(f"{path}:top_level_not_object")
+            continue
+
+        missing_keys = sorted(k for k in required_top_keys if k not in data)
+        if missing_keys:
+            failures.append(f"{path}:missing_keys:{','.join(missing_keys)}")
+            continue
+
+        files = data.get("files")
+        if not isinstance(files, list):
+            failures.append(f"{path}:files_not_list")
+            continue
+
+        for i, entry in enumerate(files):
+            if not isinstance(entry, dict):
+                failures.append(f"{path}:files[{i}]:not_object")
+                continue
+            missing_entry_keys = sorted(k for k in required_file_keys if k not in entry)
+            if missing_entry_keys:
+                failures.append(
+                    f"{path}:files[{i}]:missing_keys:{','.join(missing_entry_keys)}"
+                )
+                continue
+            sha = entry.get("sha256")
+            if isinstance(sha, str) and not re.fullmatch(r"[0-9a-f]{64}", sha):
+                failures.append(f"{path}:files[{i}]:invalid_sha256")
+
+    return GateResult(
+        ok=(len(failures) == 0),
+        details={"count": len(manifest_paths), "failures": failures},
+    )
+
+
+def gate_panel_schema_nonempty() -> GateResult:
+    mode = _parse_project_mode(Path("contracts/project.yaml"))
+    if mode == "modeling":
+        return GateResult(ok=True, details={"skipped": True, "mode": mode})
+
+    path = Path("contracts/schemas/panel_schema.yaml")
+    if not path.exists():
+        return GateResult(ok=False, details={"missing": str(path), "mode": mode})
+
+    for raw_line in _read_text(path).splitlines():
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if re.match(r"^[A-Za-z0-9_-]+\s*:", line):
+            return GateResult(ok=True, details={"path": str(path), "mode": mode})
+    return GateResult(ok=False, details={"path": str(path), "mode": mode, "failure": "comment_only"})
+
+
 def main() -> None:
     results = {
         "repo_structure": gate_repo_structure(),
@@ -387,8 +482,10 @@ def main() -> None:
         "environment": gate_environment(),
         "protocol_complete": gate_protocol_complete(),
         "model_spec_complete": gate_model_spec_complete(),
+        "panel_schema_nonempty": gate_panel_schema_nonempty(),
         "workstreams_complete": gate_workstreams_complete(),
         "task_hygiene": gate_task_hygiene(),
+        "raw_manifest_validity": gate_raw_manifest_validity(),
     }
     ok = all(r.ok for r in results.values())
     for name, r in results.items():
