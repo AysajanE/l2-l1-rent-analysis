@@ -2,6 +2,8 @@
 
 This is the “golden path” for running a Planner + multiple Workers + a Judge using this repo template.
 
+For unattended automation (tmux supervisor loop), see `docs/runbook_swarm_automation.md`.
+
 ## Prereqs
 
 - Work in a sandboxed environment (VM/devcontainer/Codespaces) containing only this repo.
@@ -13,7 +15,13 @@ This is the “golden path” for running a Planner + multiple Workers + a Judge
    - Generic: `.orchestrator/templates/task_template.md`
    - W0 protocol/contracts: `.orchestrator/templates/task_template_w0_protocol.md`
    - W1/W2 ETL: `.orchestrator/templates/task_template_w1_w2_etl.md`
-2. Move tasks to `.orchestrator/active/` when assigned to a Worker.
+2. When assigning a task, the Planner may either:
+   - set `State: active` and run `make sweep` (recommended; keeps governance consistent), or
+   - directly `git mv` the task file to `.orchestrator/active/` (Planner-only action).
+
+Concurrency guidance:
+- Prefer least-privilege `allowed_paths` (specific files/prefixes), not broad directories.
+- Avoid running multiple tasks in the same workstream concurrently unless interfaces are locked.
 
 ## 2) Worker: create an isolated worktree per task (recommended)
 
@@ -46,7 +54,13 @@ claude -p "Role: Worker. Task: .orchestrator/active/${TASK_ID}__*.md. Follow AGE
 **Codex CLI (example; adjust to your installed version):**
 
 ```bash
-codex -p "Role: Worker. Task: .orchestrator/active/${TASK_ID}__*.md. Follow AGENTS.md."
+# Non-interactive worker run (matches the style used by scripts/swarm.py):
+codex -a on-request exec --sandbox workspace-write -C . \
+  "Role: Worker. Task: .orchestrator/active/${TASK_ID}__*.md. Follow AGENTS.md."
+
+# Fully unattended (no approval prompts; external sandbox only):
+codex -a never exec --sandbox workspace-write -C . \
+  "Role: Worker. Task: .orchestrator/active/${TASK_ID}__*.md. Follow AGENTS.md."
 ```
 
 ## 4) PR-synchronized status cadence (recommended)
