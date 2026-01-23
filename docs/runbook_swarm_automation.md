@@ -1,43 +1,119 @@
 # Swarm Automation Runbook (tmux + unattended CLIs)
 
-This runbook describes how to run the **supervisor loop** that picks ready tasks from
-`.orchestrator/backlog/`, launches isolated worktrees, runs **Codex as Worker + Judge**, and (optionally)
-opens GitHub PRs — without interactive permission prompts.
+This runbook is the **human-facing** “press go” guide for starting a fully autonomous swarm run:
 
-**Safety warning (non-negotiable):** unattended mode disables approval prompts. Only run this in an
-external sandbox (VM/devcontainer/Codespaces) containing *only* this repo and no sensitive files.
-See `AGENTS.md`.
+- **Planner (control plane):** sweeps/moves tasks between lifecycle folders based on `State:`.
+- **Worker + Judge (automation plane):** selects ready tasks, creates worktrees, runs Codex, runs gates, opens PRs, and (optionally) auto-merges.
 
-**Governance (Option A):** the automation updates task `State:` and appends notes, but it does **not**
-move task files between lifecycle folders. Use `python scripts/sweep_tasks.py` as the Planner sweep
-step to align folders with `State:`.
+The repo is the shared memory. Tasks live under `.orchestrator/`.
 
-## Prereqs
+## Safety (read first; non‑negotiable)
 
-- `tmux` installed (recommended for overnight runs).
-- CLIs installed and logged in:
-  - `codex` (OpenAI Codex CLI)
-  - `claude` (Claude Code) if you want planner selection via Claude
-  - `gh` (GitHub CLI) if you want auto-PR creation
-- Git identity configured for commits:
-  - `git config --global user.name "..."` and `git config --global user.email "..."`
+Unattended mode disables approval prompts for agent CLIs.
 
-## One-time sanity check
+Only run this in an **external sandbox** (Codespaces/VM/devcontainer) that contains **only this repo**
+and **no secrets**. If you can’t say that confidently, do not run unattended mode.
 
-Run in repo root:
+Unattended mode is also guarded by a safety interlock:
+- You must set `SWARM_UNATTENDED_I_UNDERSTAND=1` or the supervisor will refuse to run.
+
+## Governance model (Option A — required for this repo)
+
+This repo intentionally separates “state updates” from “moving task files”:
+
+- `scripts/swarm.py` **does not** move task files between lifecycle folders.
+  - It only updates task `State:` + appends to `## Notes / Decisions` in the task file.
+- `scripts/sweep_tasks.py` **does** move task files (Planner action):
+  - It reads each task’s `State:` and `git mv`s the file into the matching folder.
+
+Why this matters for autonomy:
+- Dependencies are considered satisfied when the dependency task has `State: done`
+  (folder location does not affect dependency resolution).
+- Therefore, the Planner sweep loop is **recommended for hygiene**, but not strictly required for dependency progress.
+
+## Concurrency model (what the supervisor will/ won’t do)
+
+To reduce collisions:
+- The supervisor starts **at most one task per workstream at a time** (unless a task sets `parallel_ok: true` in frontmatter).
+- Tasks should use **least‑privilege** `allowed_paths` (specific files/prefixes), not broad directories.
+
+## Choose your autonomy level (pick one up front)
+
+### A) Fully unattended (zero babysitting)
+
+Requires **repo settings** that allow the automation to progress without humans:
+- GitHub auto-merge enabled.
+- No required human reviews (including CODEOWNERS) for the target branch.
+- Whatever status checks are required for merge must be satisfiable automatically.
+- Optional (hygiene): allow a Planner sweep loop to push lifecycle-folder moves to `main` (or implement a PR-based sweep policy).
+
+### B) Unattended workers, human merges/sweeps
+
+Use this if branch protection blocks direct pushes to `main`:
+- Supervisor runs and opens PRs.
+- Humans merge PRs and optionally run `make sweep` for folder hygiene.
+- This is safer, but not “true unattended”.
+
+This runbook documents both; the commands below default to (A).
+
+## 0) One-time sandbox prerequisites (copy/paste checklist)
+
+Run in a clean sandbox checkout of this repo:
 
 ```bash
+git checkout main
+git pull --ff-only origin main
+
 make gate
 make test
+
+# hard requirements
+command -v tmux
+command -v codex
+command -v gh
+
+# optional (Planner selection via Claude)
+command -v claude || true
+
+gh auth status
+codex --version
+python --version
+```
+
+### Git identity (repo-local; recommended)
+
+Automation commits (task state updates, and sweep commits). Configure identity **for this repo**:
+
+```bash
+git config user.name  "Aysajan Eziz"
+git config user.email "aysajan1986@gmail.com"
+git config --get user.name
+git config --get user.email
+```
+
+Reason this is preferred over `--global` in a sandbox:
+- It avoids modifying the sandbox’s global git identity (which might be shared across unrelated repos).
+
+Alternative (recommended for team repos / longer runs):
+- Use a dedicated bot identity (e.g., `swarm-bot` with a GitHub noreply email) so automation commits are clearly attributable.
+
+### Confirm repo is ready to start tasks
+
+This prints the set of “ready” backlog tasks (dependencies satisfied, not already claimed):
+
+```bash
 python scripts/swarm.py plan
 ```
 
-## Start an unattended supervisor loop (recommended)
+If `ready` is empty, inspect `.orchestrator/backlog/` and `.orchestrator/done/`.
 
-This starts a tmux session and launches a `supervisor` window that ticks every 5 minutes.
+## 1) Start the supervisor loop (Worker + Judge automation)
+
+This creates a tmux session and starts a `supervisor` window that ticks every 5 minutes:
 
 ```bash
 export SWARM_UNATTENDED_I_UNDERSTAND=1
+tmux set-environment -g SWARM_UNATTENDED_I_UNDERSTAND 1
 
 python scripts/swarm.py tmux-start \
   --tmux-session swarm \
@@ -45,59 +121,91 @@ python scripts/swarm.py tmux-start \
   --max-workers 2 \
   --interval-seconds 300 \
   --unattended \
-  --create-pr
+  --create-pr \
+  --auto-merge \
+  --final-state done \
+  --max-worker-seconds 1800 \
+  --max-review-seconds 300
 ```
+
+What happens next:
+- The supervisor selects ready tasks, creates worktrees (`../wt-T###` by default), and opens one tmux window per task.
+- Each task window runs `scripts/swarm.py run-task ...`:
+  - Codex runs as **Worker**.
+  - `make gate` / `make test` run as deterministic **Judge** (per task frontmatter).
+  - The task file `State:` is updated to `done` or `blocked`.
+  - A PR is opened, and auto-merge is requested (if enabled and allowed by repo policy).
 
 Notes:
 - `--unattended` disables approval prompts (Codex uses `-a never`; Claude uses `--permission-mode bypassPermissions`).
-- For ETL tasks (W1/W2), the runner enables Codex network access inside the workspace-write sandbox
-  via a config override.
-- Consider bounding individual worker runs with `--max-worker-seconds` (prevents runaway sessions).
+- For ETL tasks (W1/W2), the runner enables network access inside the Codex workspace-write sandbox via a config override.
+- Timeouts are drift control: if a worker times out, the task stays `State: active` with a note.
 
-## Planner sweep (move task files by State)
+## 2) Start the Planner sweep loop (recommended; keeps lifecycle folders aligned)
 
-After merging PRs (or when updating lifecycle folders in your branch), run:
+The sweep loop must:
+- keep `main` in sync with `origin/main`,
+- move task files based on `State:` (`make sweep`),
+- commit and push the sweep if it changed anything,
+- fail loudly if push/pull fails (silent failure = silent stall).
 
-```bash
-make sweep
-```
-
-Dry-run:
-
-```bash
-python scripts/sweep_tasks.py --dry-run
-```
-
-## Monitor
-
-Attach to the session:
+Run this in the **same tmux session**:
 
 ```bash
-tmux attach -t swarm
+tmux new-window -t swarm -n planner 'bash -lc '"'"'
+set -euo pipefail
+while true; do
+  git fetch origin
+  git checkout -f main
+  git reset --hard origin/main
+
+  make sweep
+
+  if ! git diff --quiet; then
+    git add -A
+    git commit -m "Planner sweep: align task folders with State"
+    git push origin main
+  fi
+
+  sleep 60
+done
+'"'"''
 ```
 
-List open PRs:
+Branch protection note (important):
+- If direct pushes to `main` are blocked, this loop will fail at `git push origin main`.
+- If you still want continuous folder hygiene, you must either:
+  - allow direct pushes to `main` from this automation identity, or
+  - change your policy to a PR-based sweep (more complex/noisy), or
+  - run sweeps manually.
 
-```bash
-gh pr list
-```
+## 3) Monitor / stop
 
-## Stop
+Monitor:
+- `tmux attach -t swarm`
+- `gh pr list`
+- Look for logs under `data/tmp/swarm_logs/` (untracked; local only).
+
+Stop:
 
 ```bash
 tmux kill-session -t swarm
 ```
 
-## Manual single-tick (no loop)
+## Troubleshooting (common “stall” causes)
 
-Start at most one ready task (spawns a tmux window per task by default):
-
-```bash
-python scripts/swarm.py tick --planner claude --max-workers 1 --unattended --create-pr
-```
-
-Or run locally (sequential, no tmux):
-
-```bash
-python scripts/swarm.py tick --runner local --planner heuristic --max-workers 1 --unattended
-```
+- Missing unattended interlock:
+  - Symptom: swarm refuses to run with `--unattended`.
+  - Fix: `export SWARM_UNATTENDED_I_UNDERSTAND=1` (and restart).
+- Git identity missing:
+  - Symptom: commits fail in task windows or planner sweep.
+  - Fix: set repo-local `git config user.name/user.email` (above).
+- `gh` auth expired:
+  - Symptom: PR creation/merge fails.
+  - Fix: `gh auth login` and restart.
+- Branch protection blocks sweeps:
+  - Symptom: planner window errors on push; lifecycle folders won’t update automatically.
+  - Fix: allow direct pushes for the sweep identity, switch to PR-based sweep, or skip sweeps and rely on `State:` for dependency progress.
+- Stale / leftover worktrees:
+  - Symptom: `Worktree path already exists: ../wt-T###`.
+  - Fix: `git worktree list`, then `git worktree remove <path>` and delete the directory if needed.

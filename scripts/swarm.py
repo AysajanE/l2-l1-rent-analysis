@@ -265,9 +265,13 @@ def task_dir(name: str) -> Path:
 
 def done_task_ids() -> set[str]:
     out: set[str] = set()
-    for t in list_tasks(task_dir("done")):
-        if t.state == "done":
-            out.add(t.task_id)
+    # State-based completion: treat tasks as "done" if their `State:` is `done`,
+    # regardless of which lifecycle folder they currently live in. Folder moves are
+    # still useful for hygiene, but should not be required for dependency progress.
+    for sub in ["active", "backlog", "ready_for_review", "blocked", "done"]:
+        for t in list_tasks(task_dir(sub)):
+            if t.state == "done":
+                out.add(t.task_id)
     return out
 
 
@@ -849,6 +853,11 @@ def cmd_tick(args: argparse.Namespace) -> int:
     wt_parent.mkdir(parents=True, exist_ok=True)
 
     tasks_started: list[dict[str, str]] = []
+    if args.runner == "tmux":
+        tmux_ensure_session(args.tmux_session, repo)
+        if args.unattended:
+            # Robust tmux env propagation so unattended mode works inside tmux windows.
+            _tmux("set-environment", "-g", "SWARM_UNATTENDED_I_UNDERSTAND", "1")
     for task in selected:
         if args.dry_run:
             print(f"[dry-run] would start {task.task_id}: {task.title}")
@@ -886,7 +895,6 @@ def cmd_tick(args: argparse.Namespace) -> int:
             run_cmd.append("--auto-merge")
 
         if args.runner == "tmux":
-            tmux_ensure_session(args.tmux_session, repo)
             tmux_spawn_task_window(
                 session=args.tmux_session,
                 window_name=task.task_id,
@@ -911,6 +919,9 @@ def cmd_tmux_start(args: argparse.Namespace) -> int:
     if args.unattended:
         _require_unattended_ack()
     tmux_ensure_session(args.tmux_session, repo)
+    if args.unattended:
+        # Robust tmux env propagation so unattended mode works inside tmux windows.
+        _tmux("set-environment", "-g", "SWARM_UNATTENDED_I_UNDERSTAND", "1")
     loop_cmd = [
         sys.executable,
         "scripts/swarm.py",

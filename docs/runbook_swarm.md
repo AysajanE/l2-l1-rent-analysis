@@ -15,7 +15,13 @@ For unattended automation (tmux supervisor loop), see `docs/runbook_swarm_automa
    - Generic: `.orchestrator/templates/task_template.md`
    - W0 protocol/contracts: `.orchestrator/templates/task_template_w0_protocol.md`
    - W1/W2 ETL: `.orchestrator/templates/task_template_w1_w2_etl.md`
-2. Move tasks to `.orchestrator/active/` when assigned to a Worker.
+2. When assigning a task, the Planner may either:
+   - set `State: active` and run `make sweep` (recommended; keeps governance consistent), or
+   - directly `git mv` the task file to `.orchestrator/active/` (Planner-only action).
+
+Concurrency guidance:
+- Prefer least-privilege `allowed_paths` (specific files/prefixes), not broad directories.
+- Avoid running multiple tasks in the same workstream concurrently unless interfaces are locked.
 
 ## 2) Worker: create an isolated worktree per task (recommended)
 
