@@ -83,7 +83,7 @@ This task builds a reproducible ETL that:
   - `python scripts/make_raw_manifest.py growthepie data/raw/growthepie/2026-01-22 --as-of 2026-01-22 -- python src/etl/growthepie_fetch.py --run-date 2026-01-22`
 
 ## Status
-- State: done
+- State: ready_for_review
 - Last updated: 2026-01-29
 ## Notes / Decisions
 
@@ -94,3 +94,6 @@ This task builds a reproducible ETL that:
 
 
 - 2026-01-29: Judge: gates ok; ownership ok. Review log: /home/vscode/swarm-worktrees/wt-T030/data/tmp/swarm_logs/T030_20260129T154706Z_judge_review.txt
+
+
+- 2026-01-29: Judge: gates ok; ownership ok. Review log: /home/vscode/swarm-worktrees/wt-T030/data/tmp/swarm_logs/T030_20260129T172939Z_judge_review.txt
