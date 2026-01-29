@@ -71,7 +71,7 @@ Suggested checks (keep small, but useful):
   - `python src/validation/validate_vendor_panel.py --sample`
 
 ## Status
-- State: active
+- State: done
 - Last updated: 2026-01-29
 ## Notes / Decisions
 
@@ -79,3 +79,6 @@ Suggested checks (keep small, but useful):
 
 
 - 2026-01-29: Claimed by swarm runner; starting worker (branch: T050_validation_vendor_panel_checks).
+
+
+- 2026-01-29: Judge: gates ok; ownership ok. Review log: /home/vscode/swarm-worktrees/wt-T050/data/tmp/swarm_logs/T050_20260129T154947Z_judge_review.txt
