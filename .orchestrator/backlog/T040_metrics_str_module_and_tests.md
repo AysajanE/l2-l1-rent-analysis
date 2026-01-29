@@ -59,7 +59,7 @@ This task focuses on **deterministic metric construction** using only the commit
 - [ ] `make gate` and `make test` pass
 
 ## Status
-- State: active
+- State: done
 - Last updated: 2026-01-29
 ## Notes / Decisions
 
@@ -67,3 +67,6 @@ This task focuses on **deterministic metric construction** using only the commit
 
 
 - 2026-01-29: Claimed by swarm runner; starting worker (branch: T040_metrics_str_module_and_tests).
+
+
+- 2026-01-29: Judge: gates ok; ownership ok. Review log: /home/vscode/swarm-worktrees/wt-T040/data/tmp/swarm_logs/T040_20260129T154823Z_judge_review.txt
