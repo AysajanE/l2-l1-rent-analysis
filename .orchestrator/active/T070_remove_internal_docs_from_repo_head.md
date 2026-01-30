@@ -71,9 +71,10 @@ Some `docs/` files contain internal planning/discussion content that should not 
 
 ## Status
 
-- State: active
+- State: ready_for_review
 - Last updated: 2026-01-30
 
 ## Notes / Decisions
 
 - 2026-01-30: Task created to remove internal docs from public HEAD (no history rewrite).
+- 2026-01-30: Opened PR #25; removed 3 docs from tracked HEAD; updated `.gitignore`; `make gate` passed.
