@@ -5,6 +5,7 @@ workstream: W0
 role: Worker
 priority: high
 dependencies: []
+parallel_ok: false
 allowed_paths:
   - "docs/"
   - "contracts/"
@@ -33,6 +34,7 @@ Describe the smallest, testable protocol/contract change needed and why it matte
 - Workstream: W0 Protocol/Contracts
 - Owner (agent/human):
 - Suggested branch/worktree name:
+- Parallel OK (true/false):
 - Allowed paths (edit/write):
 - Disallowed paths:
 - Stop conditions (escalate + block with `@human`):

@@ -5,6 +5,7 @@ workstream: W__
 role: Worker
 priority: medium
 dependencies: []
+parallel_ok: false
 allowed_paths:
   - "src/etl/<script>.py"
   - "data/raw/<source>/"
@@ -36,6 +37,7 @@ Describe the source, what we’re pulling, and how it connects to downstream met
 - Workstream: W1 Data: off-chain / W2 Data: on-chain
 - Owner (agent/human):
 - Suggested branch/worktree name:
+- Parallel OK (true/false):
 - Allowed paths (edit/write):
 - Disallowed paths:
 - Stop conditions (escalate + block with `@human`):

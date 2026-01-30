@@ -5,6 +5,7 @@ workstream: W__
 role: Worker
 priority: medium
 dependencies: []
+parallel_ok: false
 allowed_paths:
   - "<path/to/file_or_small_prefix>"
 disallowed_paths:
@@ -34,6 +35,7 @@ Describe *why* this task exists and how it connects to the research plan/protoco
 - Workstream:
 - Owner (agent/human):
 - Suggested branch/worktree name:
+- Parallel OK (true/false):
 - Allowed paths (edit/write):
 - Disallowed paths:
 - Stop conditions (escalate + block with `@human`):
