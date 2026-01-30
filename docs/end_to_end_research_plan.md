@@ -27,6 +27,16 @@ This operationalizes Lyn Alden’s core critique: *utility rails face competitio
 
 ---
 
+## REPO EXECUTION (THIS TEMPLATE)
+
+This repo implements the research plan using contract-first specs and a PR-synchronized multi-agent control plane:
+
+* Canonical definitions: `docs/protocol.md` (metrics/units/regimes), `contracts/` (schemas + data dictionary), `registry/` (rollup universe + attribution evidence).
+* Data pipeline plan: `docs/end_to_end_data_collection_plan.md` (phase-by-phase collection + validation).
+* Control plane: `.orchestrator/` (workstreams, task backlog, lifecycle folders, handoffs).
+* Human-facing outputs: `reports/validation/`, `reports/figures/`, `reports/tables/`, `reports/status/`.
+* Operational runbooks: `docs/runbook_swarm.md` and `docs/runbook_swarm_automation.md` (including tmux-based “press-go” automation).
+
 ## THEORETICAL FRAMEWORK
 
 ### Key hypotheses to be tested

@@ -54,12 +54,17 @@ claude -p "Role: Worker. Task: .orchestrator/active/${TASK_ID}__*.md. Follow AGE
 **Codex CLI (example; adjust to your installed version):**
 
 ```bash
-# Non-interactive worker run (matches the style used by scripts/swarm.py):
+# If your environment supports Codex's Linux sandbox (Landlock+seccomp), use `workspace-write`:
 codex -a on-request exec --sandbox workspace-write -C . \
   "Role: Worker. Task: .orchestrator/active/${TASK_ID}__*.md. Follow AGENTS.md."
 
+# If you see `error running landlock: Sandbox(LandlockRestrict)`, fall back to `danger-full-access`
+# and rely on the devcontainer/VM boundary for isolation:
+codex -a on-request exec --sandbox danger-full-access -C . \
+  "Role: Worker. Task: .orchestrator/active/${TASK_ID}__*.md. Follow AGENTS.md."
+
 # Fully unattended (no approval prompts; external sandbox only):
-codex -a never exec --sandbox workspace-write -C . \
+codex -a never exec --sandbox danger-full-access -C . \
   "Role: Worker. Task: .orchestrator/active/${TASK_ID}__*.md. Follow AGENTS.md."
 ```
 

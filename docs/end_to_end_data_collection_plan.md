@@ -1,5 +1,19 @@
 # Data Collection Plan
 
+## Repo implementation notes (this repo)
+
+This plan is written to be tool- and storage-agnostic. In this repo, we implement it using a **contract-first** layout and **tracked provenance manifests**:
+
+- Canonical definitions: `docs/protocol.md`, `contracts/`, `registry/`
+- Raw snapshots (append-only; not committed): `data/raw/<source>/<YYYY-MM-DD>/...`
+- Raw provenance (tracked): `data/raw_manifest/<source>_<YYYY-MM-DD>.json` (generated via `python scripts/make_raw_manifest.py ...`)
+- Processed artifacts (rebuildable; not committed): `data/processed/<source>/...`
+- Processed provenance (tracked): `data/processed_manifest/<name>_<YYYY-MM-DD>.json`
+- Golden samples (tracked): `data/samples/...`
+- Human-facing outputs (tracked when appropriate): `reports/validation/`, `reports/status/`, `reports/figures/`, `reports/tables/`
+
+When this document mentions `data/reference/`, `data/normalized/`, `data/analysis_ready/`, `data/qa/`, or `data/manifests/`, treat them as conceptual buckets and map them to the repo paths above.
+
 ## Phase 0 — Project initialization, protocol lock, and data dictionary
 
 ### 1. Phase name and objectives
@@ -55,31 +69,32 @@
 ### 6. Temporal parameters
 
 * Start: 2022‑01‑01
-* End: run date (e.g., current date in system context is 2026‑01‑15; but always compute “today” at runtime).
+* End: run date (e.g., current date in system context is 2026‑01‑30; but always compute “today” at runtime).
 * Granularity: metadata is point-in-time snapshot.
 * Update frequency: **snapshot on every pipeline run** (daily if operating continuously).
 
 ### 7. Collection procedure (step-by-step)
 
 1. **Create repo structure** (see Phase 7 for structure).
-2. Create `config/project.yml` containing:
+2. Confirm tracked configuration:
 
-   * `start_date`, `end_date`, `dencun_activation_utc`
-   * `sources`: growthepie base URL, Blobscan base URL, etc.
+   * `docs/protocol.md` already pins the analysis window + Dencun boundary for the repo.
+   * `contracts/project.yaml` records the project mode/question and canonical outputs.
+   * Runtime settings (API base URLs, RPC URLs, auth tokens) should be passed via CLI/env or a local (gitignored) config file; do not commit secrets.
 3. Pull growthepie `master.json` and store raw snapshot:
 
    * Save as: `data/raw/growthepie/master/{run_date}/master.json`
-   * Also compute and store hash: `sha256(master.json)` in `data/manifests/raw_files.csv`.
+   * Also generate a tracked raw manifest under `data/raw_manifest/` including SHA-256 hashes (use `python scripts/make_raw_manifest.py`).
 4. From `master.json`, generate:
 
    * `reference/origins_catalog.parquet` (one row per origin)
    * `reference/metrics_catalog.parquet` (one row per metric)
-5. Draft the **Data Dictionary** (`docs/data_dictionary.md`) with:
+5. Draft/update the **Data Dictionary** (`contracts/data_dictionary.md`) with:
 
    * For each table: fields, units, required/optional, primary key.
-6. Freeze a `rollup_universe_v0.csv` with columns:
-
-   * `rollup_id` (internal stable ID), `origin_key` (growthepie), `display_name`, `category` (optimistic/zk/other if known), `in_scope` (bool), `notes`.
+6. Freeze a tracked **rollup universe + key-mapping** artifact so all sources join on a canonical `rollup_id`.
+   - Preferred: extend `registry/rollup_registry_v1.csv` with any required source keys (e.g., growthepie `origin_key`, L2BEAT slug), plus `in_scope` and validity windows.
+   - Alternative: keep a separate `registry/rollup_universe_v0.csv` that maps source keys → `rollup_id` and records `in_scope`.
 
 ### 8. Attribution/mapping requirements
 
@@ -103,8 +118,9 @@ Not yet executed, but define now:
 * `data/raw/growthepie/master/{YYYY-MM-DD}/master.json`
 * `data/reference/origins_catalog.parquet`
 * `data/reference/metrics_catalog.parquet`
-* `data/reference/rollup_universe_v0.csv`
-* `docs/data_dictionary.md`
+* `registry/rollup_registry_v1.csv`
+* `registry/rollup_universe_v0.csv` (if using a separate source-key mapping file)
+* `contracts/data_dictionary.md`
 
 ### 11. Success criteria
 
@@ -209,16 +225,16 @@ Each export record includes: ([Grow the Pie][1])
    * rent_paid (USD vs ETH)
    * profit (USD vs ETH)
    * txcount
-3. Record chosen keys in `config/growthepie_metrics.yml`.
+3. Record chosen keys in the Phase 1A task file (`## Notes / Decisions`) and in the ETL code (tracked) so pulls are deterministic and reproducible.
 
 **Step 2 — Pull raw exports**
-For each `metric_key` in `config/growthepie_metrics.yml`:
+For each chosen `metric_key`:
 
 1. Download: `GET /v1/export/{metric_key}.json`
 2. Save raw response as:
 
    * `data/raw/growthepie/export/{metric_key}/{run_date}/{metric_key}.json`
-3. Compute and store checksum in `data/manifests/raw_files.csv`.
+3. Generate a tracked raw manifest under `data/raw_manifest/` including checksums and the exact repro command.
 
 **Step 3 — Normalize into a single fact table**
 
@@ -230,27 +246,27 @@ For each `metric_key` in `config/growthepie_metrics.yml`:
    * `run_date`, `source="growthepie"`, `snapshot_path`
 3. Write normalized parquet partitioned by `metric_key` and `run_date`:
 
-   * `data/normalized/growthepie_metrics/metric_key={k}/run_date={YYYY-MM-DD}/part-000.parquet`
+   * `data/processed/growthepie/growthepie_metrics/metric_key={k}/run_date={YYYY-MM-DD}/part-000.parquet`
 
 **Step 4 — Pivot into “analysis-ready vendor panel”**
 Create:
 
-* `data/analysis_ready/vendor_daily_rollup_panel.parquet` with columns:
+* `data/processed/growthepie/vendor_daily_rollup_panel.parquet` with columns:
 
-  * `date`, `rollup_id`, `fees_eth`, `fees_usd`, `rent_paid_eth`, `rent_paid_usd`, `profit_eth`, `profit_usd`, `txcount`
+  * `date_utc`, `rollup_id`, `l2_fees_eth`, `l2_fees_usd`, `rent_paid_eth`, `rent_paid_usd`, `profit_eth`, `profit_usd`, `txcount`
     Rules:
-* If ETH series is missing, keep USD but flag `fees_eth_missing=true`.
+* If ETH series is missing, keep USD but flag `l2_fees_eth_missing=true`.
 * Never mix units without explicit conversion.
 
 **Edge cases & failure handling**
 
 * API rate limits: implement exponential backoff + retry (e.g., 1s, 2s, 4s, 8s, max 5 attempts).
 * Partial downloads: verify JSON parses and row count > 0 before accepting; else retry.
-* Missing days: keep as null and log to `data/qa/gaps_report_growthepie.csv`.
+* Missing days: keep as null and log to `reports/validation/gaps_report_growthepie_{run_date}.csv`.
 
 ### 8. Attribution/mapping requirements
 
-* Map `origin_key` → `rollup_id` via `rollup_universe_v0.csv`.
+* Map `origin_key` → `rollup_id` via the project registry (preferred: extend `registry/rollup_registry_v1.csv` with `origin_key`; alternative: `registry/rollup_universe_v0.csv`).
 * If new origins appear in master.json, mark them `in_scope=false` until reviewed.
 
 ### 9. Validation and quality checks
@@ -279,13 +295,13 @@ Create:
   * `data/raw/growthepie/export/{metric_key}/{run_date}/{metric_key}.json`
 * Normalized:
 
-  * `data/normalized/growthepie_metrics/.../*.parquet`
+  * `data/processed/growthepie/growthepie_metrics/.../*.parquet`
 * Analysis-ready:
 
-  * `data/analysis_ready/vendor_daily_rollup_panel.parquet`
+  * `data/processed/growthepie/vendor_daily_rollup_panel.parquet`
 * QA:
 
-  * `data/qa/growthepie_coverage_report_{run_date}.csv`
+  * `reports/validation/growthepie_coverage_report_{run_date}.csv`
 
 ### 11. Success criteria
 
@@ -338,7 +354,7 @@ L2BEAT acknowledges the website uses an internal API (example shown for TVL endp
    * request URL
    * query parameters (date range, currency, granularity)
    * response schema
-6. Record these in `config/l2beat_endpoints.yml` and snapshot the response for an initial run.
+6. Record these in the Phase 1B task file (`## Notes / Decisions`) and snapshot a sample response for an initial run (golden sample under `data/samples/l2beat/`).
 
 ### 4. Secondary source with detailed collection instructions
 
@@ -388,7 +404,7 @@ L2BEAT acknowledges the website uses an internal API (example shown for TVL endp
    * Convert to a standard table with required fields.
 4. **Consistency mapping**:
 
-   * Map `l2beat_slug` to `rollup_id` via `reference/rollup_universe_*.csv`.
+   * Map `l2beat_slug` to `rollup_id` via the project registry (preferred: extend `registry/rollup_registry_v1.csv` with `l2beat_slug`; alternative: maintain `registry/rollup_universe_v0.csv`).
 
 **Edge cases**
 
@@ -421,10 +437,10 @@ L2BEAT acknowledges the website uses an internal API (example shown for TVL endp
   * `data/raw/l2beat/costs/{run_date}/{l2beat_slug}.json`
 * Normalized:
 
-  * `data/normalized/l2beat_costs_daily.parquet`
+  * `data/processed/l2beat/l2beat_costs_daily.parquet`
 * QA:
 
-  * `data/qa/l2beat_vs_growthepie_costs_{run_date}.csv`
+  * `reports/validation/l2beat_vs_growthepie_costs_{run_date}.csv`
 
 ### 11. Success criteria
 
@@ -515,7 +531,7 @@ At minimum (daily):
      * blocks (with blob fields),
      * transactions (filter to blob tx),
      * stats/aggregations if available.
-   * Record in `config/blobscan_endpoints.yml`.
+   * Record in the Phase 1C task file (`## Notes / Decisions`) and snapshot a sample response (golden sample under `data/samples/blobscan/`).
 2. **Backfill block/day aggregates**:
 
    * Pull in time chunks (e.g., 1 day or 10k blocks).
@@ -551,9 +567,9 @@ At minimum (daily):
 * Raw: `data/raw/blobscan/...`
 * Normalized:
 
-  * `data/normalized/blobscan_blocks.parquet`
-  * `data/normalized/blobscan_daily.parquet`
-  * `data/normalized/blobscan_rollup_daily.parquet` (if available)
+  * `data/processed/blobscan/blobscan_blocks.parquet`
+  * `data/processed/blobscan/blobscan_daily.parquet`
+  * `data/processed/blobscan/blobscan_rollup_daily.parquet` (if available)
 
 ### 11. Success criteria
 
@@ -652,8 +668,8 @@ None (global series).
 
 ### 10. Output specifications
 
-* `data/normalized/prices_daily.parquet`
-* `data/normalized/issuance_daily.parquet`
+* `data/processed/prices/prices_daily.parquet`
+* `data/processed/issuance/issuance_daily.parquet`
 
 ### 11. Success criteria
 
@@ -954,7 +970,10 @@ Registry file: `rollup_registry_vX.Y.json` (or csv) with tables:
 
 ### 7. Collection procedure (step-by-step)
 
-1. Start with `rollup_universe_v0.csv` (Phase 0).
+1. Start with the project’s tracked registry under `registry/` (Phase 0):
+
+   * canonical: `registry/rollup_registry_v1.csv`
+   * (optional) if you keep a separate source-key mapping file: `registry/rollup_universe_v0.csv`
 2. For each in-scope rollup, populate initial addresses/contracts:
 
    * Prefer explicit references from official docs or explorer labels.
@@ -971,8 +990,8 @@ Registry file: `rollup_registry_vX.Y.json` (or csv) with tables:
      * set `valid_to` = null and revise later.
 5. Version and changelog:
 
-   * Save registry as `data/reference/rollup_registry/v1.0/rollup_registry.json`
-   * Maintain `data/reference/rollup_registry/CHANGELOG.md` recording:
+   * Save registry as `registry/rollup_registry_v1.csv` (or bump to `registry/rollup_registry_v{N+1}.csv` when changing schema/semantics).
+   * Maintain `registry/CHANGELOG.md` recording:
 
      * what changed, why, evidence, date.
 
@@ -998,9 +1017,9 @@ Registry file: `rollup_registry_vX.Y.json` (or csv) with tables:
 
 ### 10. Output specifications
 
-* `data/reference/rollup_registry/vX.Y/rollup_registry.json`
-* `data/reference/rollup_registry/CHANGELOG.md`
-* `data/qa/registry_coverage_report_{run_date}.csv`
+* `registry/rollup_registry_v1.csv` (and later versions as needed)
+* `registry/CHANGELOG.md`
+* `reports/validation/registry_coverage_report_{run_date}.csv`
 
 ### 11. Success criteria
 
@@ -1127,7 +1146,7 @@ Outputs (daily, by rollup):
   * rule used (from-match vs to-match)
 * Keep a “candidate new poster address” list from residuals:
 
-  * `data/qa/new_poster_candidates_{run_date}.csv`
+  * `reports/validation/new_poster_candidates_{run_date}.csv`
 
 ### 9. Validation and quality checks
 
@@ -1145,10 +1164,10 @@ Outputs (daily, by rollup):
 
 ### 10. Output specifications
 
-* `data/analysis_ready/onchain_daily_rollup_costs.parquet`
-* `data/normalized/onchain_tx_costs_sample.parquet` (optional sampled tx-level)
-* `data/qa/reconciliation_growthepie_vs_onchain_{run_date}.csv`
-* `data/qa/attribution_coverage_{run_date}.csv`
+* `data/processed/onchain/onchain_daily_rollup_costs.parquet`
+* `data/processed/onchain/onchain_tx_costs_sample.parquet` (optional sampled tx-level)
+* `reports/validation/reconciliation_growthepie_vs_onchain_{run_date}.csv`
+* `reports/validation/attribution_coverage_{run_date}.csv`
 
 ### 11. Success criteria
 
@@ -1195,20 +1214,23 @@ None (this is a merge); but keep source-level tables.
 
 Final table: `daily_rollup_panel`
 
-**Keys**
+Contract note (this repo): the **minimum** STR-ready contract is defined in `contracts/schemas/panel_schema_str_v1.yaml` and documented in `contracts/data_dictionary.md`.
 
-* `date` (UTC)
+**Contracted STR-minimum fields (required)**
+
+* `date_utc` (UTC)
 * `rollup_id`
+* `l2_fees_eth` (from growthepie; ETH-native denominator)
+* `rent_paid_eth` (authoritative on-chain computed rent when available; otherwise vendor fallback must be flagged)
 
-**Vendor series**
+**Optional fields (in the current STR contract)**
 
-* `l2_fees_eth` (from growthepie)
-* `l2_fees_usd` (optional)
-* `vendor_rent_paid_eth` (growthepie)
-* `vendor_profit_eth`
+* `profit_eth` (vendor-provided profit series when available; sanity check only)
 * `txcount`
 
-**On-chain computed**
+**Optional enrichment fields (NOT part of `panel_schema_str_v1` unless/ until a new version is locked)**
+
+Keep these in a separate enriched panel/table (or bump the contract version first):
 
 * `onchain_l1_cost_eth`
 * `onchain_burn_base_eth`
@@ -1241,7 +1263,7 @@ Final table: `daily_rollup_panel`
 
 ### 7. Collection procedure (step-by-step)
 
-1. Validate each input table has consistent `date` domain and `rollup_id`.
+1. Validate each input table has consistent `date_utc` domain and `rollup_id`.
 2. Merge in this order:
 
    * growthepie vendor panel (base)
@@ -1262,22 +1284,23 @@ Final table: `daily_rollup_panel`
 
 * Coverage:
 
-  * `l2_fees_eth` and `vendor_rent_paid_eth` coverage ≥95% for in-scope rollups.
+  * `l2_fees_eth` and `rent_paid_eth` coverage ≥95% for in-scope rollups (rows exist iff both are present per protocol).
 * Sanity:
 
   * STR denominator nonzero days: count and store.
 * Outlier detection:
 
-  * any day where `vendor_rent_paid_eth > l2_fees_eth` flagged (possible, but investigate).
+  * any day where `rent_paid_eth > l2_fees_eth` flagged (possible, but investigate).
 * Reconciliation summary:
 
-  * monthly diff between vendor rent and on-chain rent.
+  * monthly diff between vendor rent series and on-chain rent (if vendor series is retained for triangulation).
 
 ### 10. Output specifications
 
-* `data/analysis_ready/daily_rollup_panel_v{dataset_version}.parquet`
-* `data/analysis_ready/daily_rollup_panel_v{dataset_version}.csv`
-* `docs/panel_schema.md`
+* `data/processed/panels/daily_rollup_panel_v{dataset_version}.parquet`
+* `data/processed/panels/daily_rollup_panel_v{dataset_version}.csv`
+* `contracts/schemas/panel_schema_str_v1.yaml` (minimum contract)
+* `contracts/data_dictionary.md`
 
 ### 11. Success criteria
 
@@ -1359,8 +1382,8 @@ None.
 
 ### 10. Output specifications
 
-* `data/manifests/run_manifest_{run_id}.json`
-* `data/qa/alerts_{run_date}.csv`
+* `reports/status/run_manifest_{run_id}.json`
+* `reports/status/alerts_{run_date}.csv`
 
 ### 11. Success criteria
 
@@ -1381,58 +1404,67 @@ None.
 
 ```
 project_root/
-  config/
-    project.yml
-    growthepie_metrics.yml
-    l2beat_endpoints.yml
-    blobscan_endpoints.yml
-  data/
-    raw/
-      growthepie/
-        master/YYYY-MM-DD/master.json
-        export/{metric_key}/YYYY-MM-DD/{metric_key}.json
-      l2beat/
-        costs/YYYY-MM-DD/{slug}.json
-      blobscan/
-        {endpoint}/YYYY-MM-DD/*.json
-      l1/
-        blocks/run_date=YYYY-MM-DD/*.parquet
-        txs/run_date=YYYY-MM-DD/*.parquet
-        receipts/run_date=YYYY-MM-DD/*.parquet
-        blob_tx/run_date=YYYY-MM-DD/*.parquet
-    normalized/
-      growthepie_metrics/...
-      l2beat_costs_daily.parquet
-      blobscan_blocks.parquet
-      blobscan_daily.parquet
-      prices_daily.parquet
-      issuance_daily.parquet
-    reference/
-      origins_catalog.parquet
-      metrics_catalog.parquet
-      rollup_universe_v*.csv
-      rollup_registry/
-        vX.Y/rollup_registry.json
-        CHANGELOG.md
-    analysis_ready/
-      vendor_daily_rollup_panel.parquet
-      onchain_daily_rollup_costs.parquet
-      daily_rollup_panel_v*.parquet
-      daily_rollup_panel_v*.csv
-    qa/
-      *.csv
-  docs/
+  .orchestrator/                   # tracked control plane (tasks, workstreams, handoffs)
+    backlog/
+    active/
+    ready_for_review/
+    blocked/
+    done/
+    handoff/
+    templates/
+    workstreams.md
+  contracts/                       # tracked (canonical specs)
+    project.yaml
     data_dictionary.md
-    panel_schema.md
-    l2beat_api_discovery.md
-    blobscan_api_discovery.md
+    schemas/
+    decisions.md
+    CHANGELOG.md
+  registry/                        # tracked (attribution registry)
+    rollup_registry_v1.csv
+    CHANGELOG.md
+  data/
+    raw/                          # gitignored; append-only snapshots
+      growthepie/YYYY-MM-DD/...
+      l2beat/YYYY-MM-DD/...
+      blobscan/YYYY-MM-DD/...
+      l1/YYYY-MM-DD/...
+    raw_manifest/                 # tracked provenance for raw snapshots
+      <source>_<YYYY-MM-DD>.json
+    processed/                    # gitignored; rebuildable outputs
+      <source>/...
+      panels/...
+    processed_manifest/           # tracked provenance for processed outputs
+      <name>_<YYYY-MM-DD>.json
+    samples/                      # tracked golden samples (small)
+      <source>/...
+      panels/...
+    tmp/                          # gitignored (swarm logs, caches)
+  docs/                            # tracked docs (protocol + runbooks)
+    protocol.md
+    runbook_swarm.md
+    runbook_swarm_automation.md
+  reports/                         # tracked research outputs
+    validation/
+    figures/
+    tables/
+    status/
+    paper/
+    deck/
+  src/                             # tracked code
+    etl/
+    validation/
+    analysis/
+  scripts/                         # tracked orchestration + deterministic gates
+  tests/
+  Makefile
+  pyproject.toml
 ```
 
 ### File formats
 
 * Raw: JSON (exact bytes from API), Parquet for L1 bulk tables
-* Normalized/analysis-ready: Parquet (primary), CSV (export)
-* Registry: JSON + CSV (both), versioned directory
+* Processed (rebuildable): Parquet (primary), CSV (export)
+* Registry: CSV (primary), optional JSON mirrors (versioned)
 
 ### Snapshot/versioning approach
 
@@ -1443,7 +1475,7 @@ project_root/
   * `git_commit_hash`
 * Every raw file has:
 
-  * SHA-256 checksum recorded in `data/manifests/raw_files.csv`
+  * SHA-256 checksum recorded in the corresponding `data/raw_manifest/<source>_<YYYY-MM-DD>.json`
 
 ### Documentation requirements
 

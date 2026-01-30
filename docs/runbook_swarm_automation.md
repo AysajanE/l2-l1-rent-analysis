@@ -143,7 +143,12 @@ codex --version
 Optional: run a tiny no-op prompt (should return quickly without doing anything harmful):
 
 ```bash
+# Prefer sandboxed execution when supported:
 codex -a on-request exec --sandbox read-only -C . "Say 'codex_ok' and stop."
+
+# If your environment can't run the Linux sandbox (Landlock/seccomp) and you see
+# `error running landlock: Sandbox(LandlockRestrict)`, use:
+codex -a on-request exec --sandbox danger-full-access -C . "Say 'codex_ok' and stop."
 ```
 
 ### 7) Confirm there are ready tasks
@@ -205,6 +210,7 @@ python scripts/swarm.py tmux-start \
   --final-state ready_for_review \
   --max-worker-seconds 1800 \
   --max-review-seconds 300 \
+  --codex-sandbox danger-full-access \
   --attach
 ```
 
@@ -229,7 +235,8 @@ python scripts/swarm.py loop \
   --create-pr \
   --final-state ready_for_review \
   --max-worker-seconds 1800 \
-  --max-review-seconds 300
+  --max-review-seconds 300 \
+  --codex-sandbox danger-full-access
 ```
 
 Stop with `Ctrl-C`.
