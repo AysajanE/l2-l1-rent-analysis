@@ -1,11 +1,3 @@
-**Meta-Block**
-
-* **Scope:** End-to-end empirical research plan to test whether Ethereum L1 captures durable economic rent from L2 scaling (rollups), using a single primary metric (“Settlement Take Rate”) plus on-chain validation and policy counterfactuals.
-* **Confidence score:** 0.86 (data sources exist and the hypothesis is falsifiable; the main execution risk is address attribution + metric-definition drift across dashboards).
-* **Perspective:** Skeptical, investor/governance-grade measurement. Treat dashboards as *claims* that must be reconciled to raw chain data.
-
----
-
 ## RESEARCH OVERVIEW
 
 ### Core research question
