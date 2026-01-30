@@ -1,61 +1,49 @@
-# Research Swarm Template (membership-friendly)
+# L2–L1 Rent Analysis (Ethereum)
 
-This template is a lightweight, *file-based* orchestration system for running multiple coding/research agents in parallel (e.g., Claude Code + OpenAI Codex), while keeping coordination sane.
+This repo contains an empirical research project measuring Ethereum L1’s “take rate” on rollup economics: how much rollups pay Ethereum L1 (“rent”) relative to the fees they collect from L2 users.
 
-## Core idea
-- **Planner** writes/updates task specs in `.orchestrator/`.
-- **Workers** execute *one task each* in isolated git worktrees/branches.
-- **Judge** runs quality gates + reviews diffs, then either requests fixes or approves merge.
+## Primary metric: Settlement Take Rate (STR)
 
-## Why this structure
-- A shared “Kanban file” where agents self-coordinate is fragile at scale.
-- Git branches/worktrees + task specs + automated gates are the simplest robust coordination mechanism.
+For day *t* (UTC):
 
-## Directory layout
-- `.orchestrator/` — task queue + state (single source of truth)
-- `docs/` — protocol, definitions, data dictionary
-- `contracts/` — canonical specs (schemas/model spec/assumptions/decisions)
-- `src/` — ETL, validation, analysis
-- `data/` — raw/processed + tracked provenance manifests (keep large artifacts out of git)
+`STR_t = (Σ_i RentPaid_{i,t}) / (Σ_i L2Fees_{i,t})`
 
-## Minimal operating procedure
-1. Fill project contracts (Phase 0):
-   - Empirical/hybrid: `docs/protocol.md` + `contracts/schemas/panel_schema_str_v1.yaml`
-   - Modeling/hybrid: `contracts/model_spec.*` + `contracts/instances/benchmark_small/`
-2. Planner creates tasks in `.orchestrator/backlog/` with success criteria.
-3. Start multiple Workers (tmux panes) and assign each a task file.
-4. Worker opens PR (or commits to its branch).
-5. Judge runs `make gate` and reviews diff vs success criteria.
-6. Merge + repeat.
+Canonical definitions, units, regimes, source priority, tolerances, and edge-case rules are locked in `docs/protocol.md`.
 
-## Runbook
+## Research goals
 
-See `docs/runbook_swarm.md`.
-Automation (tmux supervisor loop): `docs/runbook_swarm_automation.md`.
+- Trend STR over time (2022-01-01 → present).
+- Explain mechanisms via decomposition (burn vs tips; blob vs execution; pre-/post-Dencun).
+- Evaluate policy counterfactuals (e.g., blob-fee floor/reserve mechanism such as EIP-7918).
 
-## Vertical slice quickstart (STR)
+## Data sources (priority)
 
-Once tasks `T030` → `T060` are implemented/merged and the golden sample exists at
-`data/samples/growthepie/vendor_daily_rollup_panel_sample.csv`, you should be able to generate the first STR artifact via:
+When sources disagree for the same concept, the protocol prioritizes:
+
+1. On-chain computed Ethereum L1 costs (authoritative for `RentPaid` and decomposition).
+2. growthepie exports (primary for `L2Fees`; secondary vendor `rent_paid/profit` series for triangulation).
+3. L2BEAT costs series (triangulation / sanity check).
+
+Blobscan may be used for blob-market aggregates and cross-checks when available.
+
+## Repo structure
+
+- `docs/` — research plan + runbooks; **protocol lock**: `docs/protocol.md`
+- `contracts/` — canonical schemas + data dictionary (e.g., `contracts/schemas/panel_schema_str_v1.yaml`)
+- `registry/` — rollup universe + attribution evidence (`registry/rollup_registry_v1.csv`)
+- `src/etl/` — ingestion/extraction code (networked; must snapshot inputs)
+- `src/validation/` — deterministic checks (no network)
+- `src/analysis/` — deterministic figures/tables (no network)
+- `data/raw/` and `data/processed/` — gitignored large artifacts; provenance tracked in `data/raw_manifest/` and `data/processed_manifest/`
+- `reports/` — generated research outputs (validation, figures, tables, status, paper, deck)
+
+## Repro / quality gates
 
 ```bash
 make gate
 make test
-python src/validation/validate_vendor_panel.py --sample
-python src/analysis/plot_str_timeseries_sample.py
 ```
 
-Expected outputs:
-- `reports/validation/vendor_panel_validation.md`
-- `reports/validation/vendor_panel_validation.json`
-- `reports/figures/str_timeseries_sample.svg`
+## Project workflow (tasks)
 
-## Safety defaults
-- Don’t run “auto-approve everything” on your laptop.
-- Prefer a sandboxed environment (Codespaces/VM/devcontainer).
-- Restrict file access and dangerous shell commands where possible.
-
-## Practical notes
-
-- Run your agent CLI from the correct worktree directory so nested `AGENTS.md` rules are applied.
-- Hosted environments may stop after inactivity by default; verify timeouts before relying on overnight runs.
+Work is organized as explicit tasks under `.orchestrator/` with ownership boundaries to support parallel execution. For operational guidance, see `docs/runbook_swarm.md` and `docs/runbook_swarm_automation.md`.
