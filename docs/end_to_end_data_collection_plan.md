@@ -1,37 +1,4 @@
-<scratchpad>
-- Distinct data requirements:
-  - Off-chain standardized L2 fundamentals by day: L2 fees, rent_paid (L1 costs), profit, txcount (growthepie).
-  - Independent cross-check of L1 costs by rollup (L2BEAT costs series + tracked tx list).
-  - Blob market state + blob usage by time and (ideally) rollup labels (Blobscan; fallback: raw chain).
-  - Raw Ethereum L1 data: blocks/headers, txs, receipts; post‑4844 blob tx identification and required header fields.
-  - Rollup attribution registry: batch poster/sequencer/prover addresses + key L1 contracts; validity windows; evidence links.
-  - ETH issuance series (daily) + ETH/USD price series (daily) for secondary metrics.
-- Logical collection phases (aligned to research plan):
-  - Phase 0: repo/protocol lock + data dictionary + rollup universe list.
-  - Phase 1: ingest off-chain vendor datasets (growthepie; L2BEAT; Blobscan).
-  - Phase 2: extract raw L1 chain data (block/tx/receipt; blob fields).
-  - Phase 3: build/version rollup attribution registry (addresses/contracts with validity dates).
-  - Phase 4: compute rollup-attributed L1 costs + burn/tips decomposition (data processing, but still “collection” of derived tables).
-  - Phase 5: QA + reconciliation tables + coverage metrics; freeze analysis-ready daily panel.
-- Source mapping:
-  - growthepie: primary for L2Fees + RentPaid + Profit + Txcount (daily panel).
-  - on-chain computed L1 fees: primary for burn/tips decomposition and “auditable” rent.
-  - L2BEAT costs: secondary triangulation for rent/cost breakdown (calldata vs blobs vs compute/overhead).
-  - Blobscan: secondary/assistive for blob usage + labeling utilities; raw chain as fallback.
-  - Issuance: primary from consensus-layer feeds (beacon APIs) or a reputable derived dataset; secondary from Ultrasound/others (cross-check).
-  - Prices: primary from CoinGecko (or equivalent); secondary from CryptoCompare/Coinbase.
-- Optimal sequence & dependencies:
-  - Need rollup universe list + date window before any pulls.
-  - Need growthepie master.json before exporting metrics (to confirm exact metric keys).
-  - Need Dencun activation timestamp as regime boundary (March 13, 2024 13:55 UTC / epoch 269568) to split extraction logic. 
-  - Need attribution registry before rollup-attributed on-chain fee aggregation.
-- Special technical considerations:
-  - EIP‑4844 blob tx (type‑3) fees: execution gas fee + blob fee; blob base fee derived from header fields; many datasets omit blob fields—validate early.
-  - Address drift: posters change; use validity windows + ongoing detection of new senders to known rollup contracts.
-  - Vendor drift: snapshot every pull; store raw JSON and “master metadata” per run.
-</scratchpad>
-
-<data_collection_plan>
+# Data Collection Plan
 
 ## Phase 0 — Project initialization, protocol lock, and data dictionary
 
@@ -1494,8 +1461,6 @@ project_root/
 1. **Do not trust dashboards without snapshotting.** Vendor series can revise history; your raw snapshot is the audit anchor.
 2. **Blob fields are the #1 technical risk.** Validate early that your raw L1 extraction includes enough info to compute blob fees per tx.
 3. **Registry versioning is non-negotiable.** If you change attribution, you must be able to reproduce the old results.
-
-</data_collection_plan>
 
 [1]: https://docs.growthepie.xyz/api "API | growthepie Knowledge"
 [2]: https://l2beat.com/scaling/costs "Costs - L2BEAT"
