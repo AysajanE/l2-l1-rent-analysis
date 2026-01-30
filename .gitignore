@@ -96,6 +96,11 @@ data/processed/
 data/tmp/
 data/cache/
 
+# Internal planning docs (do not commit)
+docs/discussion_on_building_autonomous_AI_agents_research_workflow.md
+docs/end_to_end_research_plan.md
+docs/end_to_end_data_collection_plan.md
+
 # Logs / temp
 *.log
 *.tmp
