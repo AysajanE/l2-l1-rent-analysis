@@ -688,11 +688,13 @@ def gate_task_dependencies() -> GateResult:
 
     id_to_path: dict[str, Path] = {}
     deps_map: dict[str, list[str]] = {}
+    outputs_map: dict[str, list[str]] = {}
 
     for path in sorted(task_files):
         fm = _parse_task_frontmatter(_read_text(path)) or {}
         task_id = fm.get("task_id")
         deps = fm.get("dependencies")
+        outputs = fm.get("outputs")
         if not isinstance(task_id, str):
             continue
         if task_id in id_to_path:
@@ -703,6 +705,10 @@ def gate_task_dependencies() -> GateResult:
         if isinstance(deps, list):
             deps_list = [d for d in deps if isinstance(d, str)]
         deps_map[task_id] = deps_list
+        outputs_list: list[str] = []
+        if isinstance(outputs, list):
+            outputs_list = [o for o in outputs if isinstance(o, str)]
+        outputs_map[task_id] = outputs_list
 
     # Validate dependency IDs exist and are well-formed.
     for task_id, deps in deps_map.items():
@@ -741,6 +747,13 @@ def gate_task_dependencies() -> GateResult:
 
     for task_id in sorted(id_to_path.keys()):
         _dfs(task_id, [])
+
+    # Enforce processed-manifest helper sequencing: any task that emits a tracked
+    # `data/processed_manifest/*` artifact must depend on T096.
+    for task_id, outputs in outputs_map.items():
+        if any("data/processed_manifest/" in o for o in outputs):
+            if "T096" not in set(deps_map.get(task_id, [])):
+                failures.append(f"{id_to_path.get(task_id)}:missing_dependency:T096_for_processed_manifest")
 
     return GateResult(ok=(len(failures) == 0), details={"failures": failures})
 

@@ -4,7 +4,8 @@ title: "Prices ETL: ingest daily ETH/USD series + golden sample"
 workstream: W1
 role: Worker
 priority: medium
-dependencies: []
+dependencies:
+  - "T096"
 parallel_ok: true
 allowed_paths:
   - "src/etl/prices_fetch.py"
@@ -57,16 +58,16 @@ USD series are explicitly secondary in `docs/protocol.md`, but are useful for in
 ## Success Criteria
 
 - [ ] Daily series covers the protocol window (2022-01-01 → present, with documented endpoints)
-- [ ] Raw and processed manifests exist and are consistent
+- [ ] Raw manifest exists and is append-only
+- [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Golden sample is committed and stable
 - [ ] `make gate` passes
 
 ## Status
 
 - State: backlog
-- Last updated: 2026-01-30
+- Last updated: 2026-02-04
 
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to support secondary USD conversions and figures.
-

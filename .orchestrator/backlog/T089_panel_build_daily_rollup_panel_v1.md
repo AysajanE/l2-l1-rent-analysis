@@ -5,6 +5,7 @@ workstream: W9
 role: Worker
 priority: high
 dependencies:
+  - "T096"
   - "T020"
   - "T030"
   - "T088"
@@ -63,16 +64,15 @@ at the grain (`date_utc`, `rollup_id`), respecting the protocol missingness rule
 
 - [ ] Output conforms to the v1 contract (keys + required fields + units)
 - [ ] Missingness rule is implemented exactly as in `docs/protocol.md`
-- [ ] Processed manifest exists and is append-only
+- [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` (append-only; includes input manifests + output hashes)
 - [ ] Golden sample is committed and stable
 - [ ] `make gate` passes
 
 ## Status
 
 - State: backlog
-- Last updated: 2026-01-30
+- Last updated: 2026-02-04
 
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to produce the canonical STR-ready dataset from authoritative sources.
-

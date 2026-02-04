@@ -5,6 +5,7 @@ workstream: W1
 role: Worker
 priority: medium
 dependencies:
+  - "T096"
   - "T081"
 parallel_ok: true
 allowed_paths:
@@ -71,15 +72,15 @@ This task depends on T081 so the registry can provide a deterministic `l2beat_sl
 - [ ] Raw snapshot is written to a dated folder (append-only)
 - [ ] Raw manifest exists and validates via `make gate`
 - [ ] Normalized daily table is reproducible from the raw snapshot
+- [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Golden sample is committed and stable
 - [ ] `make gate` passes
 
 ## Status
 
 - State: backlog
-- Last updated: 2026-01-30
+- Last updated: 2026-02-04
 
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to enable cross-source rent triangulation at scale.
-

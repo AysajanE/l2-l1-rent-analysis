@@ -5,6 +5,7 @@ workstream: W2
 role: Worker
 priority: high
 dependencies:
+  - "T096"
   - "T082"
   - "T087"
 parallel_ok: false
@@ -68,15 +69,15 @@ Outputs should be rebuildable from raw snapshots and should include a committed 
 
 - [ ] Daily rollup rent series is reproducible from raw snapshots + registry version
 - [ ] Decomposition components are internally consistent (sum checks where applicable)
+- [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Sample is committed and stable
 - [ ] `make gate` passes
 
 ## Status
 
 - State: backlog
-- Last updated: 2026-01-30
+- Last updated: 2026-02-04
 
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to produce the authoritative on-chain rent series required for STR.
-
