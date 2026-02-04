@@ -2,4 +2,8 @@ version: 1
 description: "Schema entrypoints (use versioned schema files for canonical field lists)."
 schemas:
   str: "contracts/schemas/panel_schema_str_v1.yaml"
+  str_v2: "contracts/schemas/panel_schema_str_v2.yaml"
   decomposition: "contracts/schemas/panel_schema_decomp_v1.yaml"
+  rollup_costs_daily: "contracts/schemas/rollup_costs_daily_v1.yaml"
+  rollup_costs_decomposition_daily: "contracts/schemas/rollup_costs_decomposition_daily_v1.yaml"
+  issuance_daily: "contracts/schemas/issuance_daily_v1.yaml"

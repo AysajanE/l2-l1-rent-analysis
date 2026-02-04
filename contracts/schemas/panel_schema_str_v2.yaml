@@ -1,0 +1,103 @@
+version: 2
+table: daily_rollup_panel_v2
+description: "Enriched daily rollup panel for full-scale STR analysis (v2; extends v1 with decomposition, regimes, and macro inputs)."
+grain:
+  - date_utc
+  - rollup_id
+fields:
+  # --- v1 core (required for STR) ---
+  - name: date_utc
+    type: date
+    units: "YYYY-MM-DD (UTC)"
+    nullable: false
+    description: "UTC date for daily aggregation."
+  - name: rollup_id
+    type: string
+    units: "slug"
+    nullable: false
+    description: "Stable rollup identifier (see registry/rollup_registry_v1.csv)."
+  - name: l2_fees_eth
+    type: number
+    units: "ETH"
+    nullable: false
+    description: "Total user fees paid on the rollup on date_utc (ETH-native series)."
+  - name: rent_paid_eth
+    type: number
+    units: "ETH"
+    nullable: false
+    description: "Total fees paid by the rollup to Ethereum L1 for settlement/DA/proofs on date_utc (ETH-native; on-chain authoritative)."
+
+  # --- v1 optional ---
+  - name: profit_eth
+    type: number
+    units: "ETH"
+    nullable: true
+    description: "Vendor-provided profit series when available; used only for sanity checks (profit ≈ fees − rent)."
+  - name: txcount
+    type: integer
+    units: "count"
+    nullable: true
+    description: "L2 transaction count on date_utc when provided by the source."
+
+  # --- On-chain rent decomposition (rollup-attributed; ETH is primary, wei is precision-safe secondary) ---
+  - name: rent_base_fee_burn_eth
+    type: number
+    units: "ETH"
+    nullable: true
+    description: "Rollup-attributed execution-layer base fee burn component of rent_paid_eth on date_utc (ETH)."
+  - name: rent_blob_fee_burn_eth
+    type: number
+    units: "ETH"
+    nullable: true
+    description: "Rollup-attributed blob fee burn component of rent_paid_eth on date_utc (ETH)."
+  - name: rent_priority_fee_eth
+    type: number
+    units: "ETH"
+    nullable: true
+    description: "Rollup-attributed execution-layer priority fee (tips) component of rent_paid_eth on date_utc (ETH)."
+  - name: rent_blob_fee_burn_wei
+    type: integer
+    units: "wei"
+    nullable: true
+    description: "Precision-safe integer version of rent_blob_fee_burn_eth (wei)."
+  - name: rollup_blob_gas_used
+    type: integer
+    units: "blob gas"
+    nullable: true
+    description: "Rollup-attributed total blob gas used on date_utc (used for counterfactuals and attribution coverage checks)."
+
+  # --- Global daily regime / market state (duplicated on each rollup-day row) ---
+  - name: l1_base_fee_per_gas_wei
+    type: integer
+    units: "wei per gas"
+    nullable: false
+    description: "Daily execution-layer base fee per gas level (wei). Required for EIP-7918 reserve-floor computations."
+  - name: l1_blob_base_fee_wei
+    type: integer
+    units: "wei per blob gas"
+    nullable: true
+    description: "Daily blob base fee per blob gas level (wei). Use for regime classification; do not compute regimes from floating gwei."
+  - name: l1_blob_gas_used
+    type: integer
+    units: "blob gas"
+    nullable: true
+    description: "Total blob gas used on Ethereum L1 on date_utc (optional cross-check/regime field)."
+
+  # --- Macro inputs (global; duplicated on each rollup-day row) ---
+  - name: eth_usd_close
+    type: number
+    units: "USD per ETH"
+    nullable: true
+    description: "ETH/USD close price for date_utc (secondary; interpretation only)."
+  - name: issuance_eth
+    type: number
+    units: "ETH"
+    nullable: true
+    description: "Gross ETH issuance to validators for date_utc (consensus-layer issuance; not net of burn)."
+
+  # --- Provenance (optional; may be captured in manifests instead) ---
+  - name: registry_version
+    type: string
+    units: "git ref or semver"
+    nullable: true
+    description: "Version identifier for the rollup registry used to build this panel (optional; manifests are canonical)."

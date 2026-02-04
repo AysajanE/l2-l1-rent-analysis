@@ -1,0 +1,27 @@
+version: 1
+table: rollup_costs_daily
+description: "On-chain computed rollup-attributed daily L1 rent (authoritative STR numerator input)."
+grain:
+  - date_utc
+  - rollup_id
+fields:
+  - name: date_utc
+    type: date
+    units: "YYYY-MM-DD (UTC)"
+    nullable: false
+    description: "UTC date for daily aggregation."
+  - name: rollup_id
+    type: string
+    units: "slug"
+    nullable: false
+    description: "Stable rollup identifier (see registry/rollup_registry_v1.csv)."
+  - name: rent_paid_eth
+    type: number
+    units: "ETH"
+    nullable: false
+    description: "Total L1 fees paid by the rollup for settlement/DA/proofs on date_utc (ETH)."
+  - name: rent_paid_wei
+    type: integer
+    units: "wei"
+    nullable: true
+    description: "Precision-safe integer version of rent_paid_eth (wei)."

@@ -1,0 +1,26 @@
+version: 1
+table: issuance_daily
+description: "Daily ETH issuance series used for burn-share context (gross issuance; not net of burn)."
+grain:
+  - date_utc
+fields:
+  - name: date_utc
+    type: date
+    units: "YYYY-MM-DD (UTC)"
+    nullable: false
+    description: "UTC date for daily aggregation."
+  - name: issuance_eth
+    type: number
+    units: "ETH"
+    nullable: false
+    description: "Gross ETH issuance to validators on date_utc (consensus-layer issuance; not net of burn)."
+  - name: source
+    type: string
+    units: "enum"
+    nullable: false
+    description: "Issuance data source identifier (primary: ultrasound_money; secondary allowed only for validation)."
+  - name: method
+    type: string
+    units: "free text"
+    nullable: true
+    description: "Short description of how the issuance series was constructed (e.g., 'consensus rewards aggregated by day')."

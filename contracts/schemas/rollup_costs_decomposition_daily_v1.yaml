@@ -1,0 +1,67 @@
+version: 1
+table: rollup_costs_decomposition_daily
+description: "On-chain computed rollup-attributed daily L1 rent decomposition (burn vs tips; blob vs execution)."
+grain:
+  - date_utc
+  - rollup_id
+fields:
+  - name: date_utc
+    type: date
+    units: "YYYY-MM-DD (UTC)"
+    nullable: false
+    description: "UTC date for daily aggregation."
+  - name: rollup_id
+    type: string
+    units: "slug"
+    nullable: false
+    description: "Stable rollup identifier (see registry/rollup_registry_v1.csv)."
+  - name: rent_paid_eth
+    type: number
+    units: "ETH"
+    nullable: false
+    description: "Total rollup-attributed L1 rent paid on date_utc (ETH)."
+  - name: rent_base_fee_burn_eth
+    type: number
+    units: "ETH"
+    nullable: false
+    description: "Execution-layer base fee burn component attributable to the rollup on date_utc (ETH)."
+  - name: rent_blob_fee_burn_eth
+    type: number
+    units: "ETH"
+    nullable: false
+    description: "Blob fee burn component attributable to the rollup on date_utc (ETH)."
+  - name: rent_priority_fee_eth
+    type: number
+    units: "ETH"
+    nullable: false
+    description: "Execution-layer priority fee (tips) component attributable to the rollup on date_utc (ETH)."
+  - name: rollup_blob_gas_used
+    type: integer
+    units: "blob gas"
+    nullable: false
+    description: "Total blob gas used by the rollup on date_utc (0 pre-Dencun or if no blobs used)."
+  - name: rent_paid_wei
+    type: integer
+    units: "wei"
+    nullable: true
+    description: "Precision-safe integer version of rent_paid_eth (wei)."
+  - name: rent_blob_fee_burn_wei
+    type: integer
+    units: "wei"
+    nullable: true
+    description: "Precision-safe integer version of rent_blob_fee_burn_eth (wei)."
+  - name: rent_base_fee_burn_wei
+    type: integer
+    units: "wei"
+    nullable: true
+    description: "Precision-safe integer version of rent_base_fee_burn_eth (wei)."
+  - name: rent_priority_fee_wei
+    type: integer
+    units: "wei"
+    nullable: true
+    description: "Precision-safe integer version of rent_priority_fee_eth (wei)."
+  - name: unattributed_rent_eth
+    type: number
+    units: "ETH"
+    nullable: true
+    description: "Optional residual bucket: L1 rent not attributable to the rollup due to incomplete registry coverage on date_utc (ETH)."

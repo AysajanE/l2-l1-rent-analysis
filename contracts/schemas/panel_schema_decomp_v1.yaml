@@ -39,8 +39,13 @@ fields:
     units: "gas"
     nullable: true
     description: "Total calldata gas proxy on date_utc (optional; used for cross-checks)."
+  - name: l1_blob_base_fee_wei
+    type: integer
+    units: "wei per blob gas"
+    nullable: true
+    description: "Blob base fee per blob gas level (wei) on date_utc; integer-safe input for regime classification (optional)."
   - name: l1_blob_base_fee_gwei
     type: number
     units: "gwei"
     nullable: true
-    description: "Blob base fee level (gwei) on date_utc; used for regime classification (optional)."
+    description: "Blob base fee per blob gas level (gwei) on date_utc (presentation only; do not compute regimes from floating gwei)."

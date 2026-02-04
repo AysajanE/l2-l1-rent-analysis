@@ -50,6 +50,45 @@ Rules:
 - Prefer ETH-native series; convert to USD only using an explicit price series and document the source.
 - Changing source priority requires a Workstream W0 task and explicit review.
 
+## Auxiliary series (locked)
+
+These definitions are required for decomposition/regime/counterfactual work. Downstream workstreams must not reinterpret them.
+
+### Issuance (for burn-share context)
+
+- Field name: `issuance_eth` (daily, UTC)
+- Definition: **gross** ETH issuance to validators (consensus-layer issuance), **not net of burn**.
+- Units: ETH (not wei).
+- Source policy:
+  - Primary: `ultrasound.money` daily issuance series (snapshotted; treated as an externally-derived dataset).
+  - Secondary (tolerance check): a beacon-chain explorer / consensus feed.
+
+### Blob fee computation (authoritative fields; integer-safe)
+
+- Use **integer wei** for blob-fee inputs. Do not compute regimes using floating-point gwei.
+- For a blob tx:
+  - `blob_gas_used` must be available (receipt preferred).
+  - `base_fee_per_blob_gas_wei` must be available either:
+    - directly as `blobGasPrice` in the receipt (preferred), or
+    - computed deterministically from block header fields per EIP-4844 (fallback).
+  - Blob burn is computed as: `burn_blob_wei = blob_gas_used × base_fee_per_blob_gas_wei`.
+- Execution-layer burn/tips use the standard EIP-1559 decomposition in wei:
+  - `burn_base_wei = gas_used × base_fee_per_gas_wei` (block header)
+  - `tips_wei = gas_used × (effective_gas_price_wei − base_fee_per_gas_wei)` (receipt + block header)
+
+### EIP-7918 reserve/floor counterfactual (parameterization)
+
+Counterfactual floor uses the EIP-7918 reserve-price definition (post-Dencun only):
+
+- Constants:
+  - `BLOB_BASE_COST = 8192` (EIP-7918)
+  - `GAS_PER_BLOB = 131072` (EIP-4844)
+- Reserve (floor) blob base fee per blob gas (wei):
+  - `reserve_blob_base_fee_wei = floor(BLOB_BASE_COST × base_fee_per_gas_wei / GAS_PER_BLOB)`
+- Counterfactual blob base fee per blob gas (wei):
+  - `base_fee_per_blob_gas_cf_wei = max(base_fee_per_blob_gas_wei, reserve_blob_base_fee_wei)`
+- “Floor binding” on a block/day means `reserve_blob_base_fee_wei > base_fee_per_blob_gas_wei`.
+
 ## Known regime dates
 
 Daily regime boundaries are evaluated in **UTC**.
@@ -61,7 +100,9 @@ Daily regime boundaries are evaluated in **UTC**.
 ## Regime definitions (derived)
 
 - Post-Dencun regime: `date_utc >= 2024-03-13` (UTC).
-- Blob fee floor regime (post-Dencun only): identify contiguous runs of ≥7 days where `l1_blob_base_fee_gwei <= 1.05 × min(l1_blob_base_fee_gwei)` over the post-Dencun sample window.
+- Blob fee floor regime (post-Dencun only): identify contiguous runs of ≥7 days where:
+  - `l1_blob_base_fee_wei <= floor(1.05 × min(l1_blob_base_fee_wei))`
+  - Implementation (integer-safe): `l1_blob_base_fee_wei <= (min(l1_blob_base_fee_wei) * 105) // 100`
 
 ## Validation tolerances
 
@@ -75,3 +116,5 @@ Unless overridden by a task:
   - `blobGasUsed` tolerance: ≤1% between Blobscan and on-chain daily aggregation
 - Price inputs (monthly averages):
   - Tolerance: 1–2% between primary and secondary price sources
+- Issuance inputs (monthly aggregates):
+  - Target tolerance: 0.5–1% between primary and secondary issuance sources
