@@ -7,7 +7,8 @@ priority: high
 dependencies:
   - "T096"
   - "T082"
-  - "T087"
+  - "T087B"
+  - "T087C"
 parallel_ok: false
 allowed_paths:
   - "src/etl/l1_fee_components.py"
@@ -39,7 +40,7 @@ stop_conditions:
 
 ## Context
 
-Per `docs/protocol.md`, on-chain computed series are authoritative for `RentPaid_{i,t}` and its decomposition. Using the raw extraction from T087 and the attribution registry from T082, compute:
+Per `docs/protocol.md`, on-chain computed series are authoritative for `RentPaid_{i,t}` and its decomposition. Using the raw extraction from T087B/T087C and the attribution registry from T082, compute:
 - daily rollup-attributed rent in ETH, and
 - a decomposition into burn vs tips, and blob vs execution where feasible.
 
@@ -48,7 +49,7 @@ Outputs should be rebuildable from raw snapshots and should include a committed 
 ## Inputs
 
 - `registry/rollup_registry_v1.csv` (read-only): batcher/poster addresses and evidence
-- Raw/processed L1 extracts from T087 (read-only)
+- Raw/processed L1 extracts from T087B/T087C (read-only)
 - `docs/protocol.md` (read-only): Dencun boundary, tolerances, and decomposition expectations
 
 ## Outputs

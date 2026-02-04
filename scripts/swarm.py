@@ -276,7 +276,11 @@ def done_task_ids() -> set[str]:
 
 
 def _parse_task_id_from_branch(name: str) -> str | None:
-    m = re.match(r"^(T\d{3})\b", name)
+    # Accept task IDs like:
+    # - T010 (legacy)
+    # - T087A (split subtasks)
+    # and allow common branch separators like `_` or `-`.
+    m = re.match(r"^(T\d{3}[A-Z]?)(?:$|[^A-Za-z0-9])", name)
     return m.group(1) if m else None
 
 
@@ -326,10 +330,17 @@ def claimed_task_ids(remote: str, base_branch: str) -> set[str]:
         except Exception:
             pass
 
-    # Fallback: any remote branch with prefix T###_
+    # Fallback: any remote branch with prefix T###[_-]... (and optional split suffix, e.g. T087A_...)
     try:
         cp = _run(
-            ["git", "ls-remote", "--heads", remote, "T[0-9][0-9][0-9]_*"],
+            [
+                "git",
+                "ls-remote",
+                "--heads",
+                remote,
+                "T[0-9][0-9][0-9]_*",
+                "T[0-9][0-9][0-9][A-Z]_*",
+            ],
             capture=True,
             check=True,
             cwd=_repo_root(),

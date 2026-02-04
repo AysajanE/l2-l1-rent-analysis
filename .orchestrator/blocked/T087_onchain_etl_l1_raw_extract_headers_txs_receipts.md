@@ -1,11 +1,14 @@
 ---
 task_id: T087
-title: "On-chain ETL: extract L1 blocks/txs/receipts (blob-ready) + manifests + sample"
+title: "DEPRECATED: monolithic L1 extraction task (superseded by T087A/B/C)"
 workstream: W2
 role: Worker
 priority: high
 dependencies:
   - "T096"
+  - "T087A"
+  - "T087B"
+  - "T087C"
 parallel_ok: false
 allowed_paths:
   - "src/etl/rpc_client.py"
@@ -38,19 +41,20 @@ gates:
 stop_conditions:
   - "Need RPC credentials"
   - "RPC performance insufficient for the required window"
-  - "Blob fields unavailable post-Dencun"
+- "Blob fields unavailable post-Dencun"
 ---
 
-# Task T087 — On-chain ETL: extract L1 blocks/txs/receipts (blob-ready) + manifests + sample
+# Task T087 — DEPRECATED: monolithic L1 extraction task (superseded by T087A/B/C)
 
 ## Context
 
-The protocol prioritizes **on-chain computed** rent paid for `RentPaid_{i,t}`. To compute rollup-attributed rent and decompositions, we need a reproducible raw extraction of Ethereum L1 data that includes:
-- block headers (including post-Dencun blob header fields),
-- transactions (including type-3 blob txs),
-- receipts (gas used, status, logs as needed).
+This task has been superseded by a safer split that adds an explicit “blob-ready” acceptance test and isolates extraction surfaces:
 
-This task builds the raw extraction layer and produces a small committed sample so downstream logic can be tested deterministically without a full backfill.
+- **T087A**: RPC capability probe (type‑3 tx + blob field availability + computable `burn_blob_wei`)
+- **T087B**: block header extractor (incl. blob header fields)
+- **T087C**: tx+receipt extractor (incl. blob fields + join keys)
+
+Workers should implement and run **T087A/B/C** instead of this monolithic task. This file remains to preserve historical references to `T087` and prevent ID drift in downstream discussions.
 
 ## Inputs
 
@@ -86,9 +90,10 @@ This task builds the raw extraction layer and produces a small committed sample 
 
 ## Status
 
-- State: backlog
+- State: blocked
 - Last updated: 2026-02-04
 
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) as the raw foundation for on-chain rent computation.
+- 2026-02-04: Deprecated and split into T087A/T087B/T087C with an explicit blob-field acceptance test (probe) before any backfill.

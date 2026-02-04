@@ -168,6 +168,8 @@ def gate_repo_structure() -> GateResult:
         required.extend(
             [
                 Path("docs/protocol.md"),
+                Path("docs/end_to_end_data_collection_plan.md"),
+                Path("docs/end_to_end_research_plan.md"),
                 Path("contracts/schemas/panel_schema.yaml"),
                 Path("contracts/schemas/panel_schema_str_v1.yaml"),
                 Path("contracts/schemas/panel_schema_decomp_v1.yaml"),
@@ -713,7 +715,7 @@ def gate_task_dependencies() -> GateResult:
     # Validate dependency IDs exist and are well-formed.
     for task_id, deps in deps_map.items():
         for dep in deps:
-            if not re.fullmatch(r"T\d{3}", dep):
+            if not re.fullmatch(r"T\d{3}[A-Z]?", dep):
                 failures.append(f"{id_to_path.get(task_id)}:invalid_dependency_id:{dep}")
                 continue
             if dep == task_id:
