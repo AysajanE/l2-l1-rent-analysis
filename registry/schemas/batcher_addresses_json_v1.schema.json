@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "batcher_addresses_json_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "state", "addresses"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "state": {
+      "type": "string",
+      "enum": ["unknown", "partial", "complete"],
+      "description": "unknown=not researched yet; partial=some addresses known; complete=coverage believed complete (still subject to revision)."
+    },
+    "addresses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["address", "role", "evidence_url", "verified_utc"],
+        "properties": {
+          "address": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$",
+            "description": "Ethereum address (0x + 40 hex chars)."
+          },
+          "role": {
+            "type": "string",
+            "enum": ["batcher", "poster", "proposer", "sequencer", "other"],
+            "description": "Role of the address in L1 posting / settlement."
+          },
+          "start_date_utc": {
+            "type": ["string", "null"],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Optional first UTC date this address is valid for attribution."
+          },
+          "end_date_utc": {
+            "type": ["string", "null"],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Optional last UTC date this address is valid for attribution (inclusive)."
+          },
+          "evidence_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Evidence link for this mapping (official docs/explorer/credible source)."
+          },
+          "verified_utc": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "UTC date the mapping was verified."
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}
+
