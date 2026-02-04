@@ -1,0 +1,25 @@
+{
+  "failures": [
+    {
+      "check": "inputs",
+      "details": {
+        "path": "data/samples/growthepie/vendor_daily_rollup_panel_sample.csv"
+      },
+      "message": "missing_input_csv"
+    }
+  ],
+  "inputs": [
+    {
+      "exists": false,
+      "path": "data/samples/growthepie/vendor_daily_rollup_panel_sample.csv"
+    }
+  ],
+  "metrics": {},
+  "missing_inputs": [
+    "data/samples/growthepie/vendor_daily_rollup_panel_sample.csv"
+  ],
+  "notes": [
+    "Generate the committed sample via W1 growthepie ETL (T030), then rerun: python src/validation/validate_vendor_panel.py --sample"
+  ],
+  "ok": false
+}
