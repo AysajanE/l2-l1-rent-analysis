@@ -1,0 +1,35 @@
+{
+  "command": "\"src/analysis/str_empirical_tests.py\" \"--sample\"",
+  "created_at_utc": "2026-02-04T20:47:22.740764+00:00",
+  "git_sha": "1820d07cea1a9f863ae1ce844c8cfd271b213ba7",
+  "inputs": [
+    {
+      "bytes": 7958,
+      "path": "data/samples/panels/daily_rollup_panel_v1_sample.csv",
+      "sha256": "437ff47d9cf908ac9d234b21697b28faedaa4062a8ddc11098f83096ec7e3065"
+    }
+  ],
+  "outputs": [
+    {
+      "bytes": 2584,
+      "path": "reports/tables/str_empirical_tests_sample.json",
+      "sha256": "a044edf82724d9242bf6a996b13a5c1609d0676d168310c6ff98bae8eb47c316"
+    },
+    {
+      "bytes": 977,
+      "path": "reports/tables/str_empirical_tests_sample.md",
+      "sha256": "fd6f9ba583a254e33e1e30016ac140420befb7bb0378320c203a487bc4df939c"
+    },
+    {
+      "bytes": 2101,
+      "path": "reports/tables/str_time_series_sample.csv",
+      "sha256": "93011ac35c0e202b53e9cecd8d71a51da66dc36a5d37d0380c9ffd1ed83be642"
+    },
+    {
+      "bytes": 1951,
+      "path": "reports/figures/str_time_series_sample.svg",
+      "sha256": "849f7ec5b1b787d71e2b6415215d9b1a416ab9836164e5c1159e66ae8b0c9da2"
+    }
+  ],
+  "script_path": "src/analysis/str_empirical_tests.py"
+}

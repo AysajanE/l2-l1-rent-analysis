@@ -8,6 +8,7 @@ For unattended automation (tmux supervisor loop), see `docs/runbook_swarm_automa
 
 - Work in a sandboxed environment (VM/devcontainer/Codespaces) containing only this repo.
 - Ensure `make gate` passes on `main` before starting parallel work.
+- For tasks that need credentials/env vars (e.g., on-chain RPC), run `make preflight-onchain` to fail fast.
 
 ## 1) Planner: create/activate tasks
 

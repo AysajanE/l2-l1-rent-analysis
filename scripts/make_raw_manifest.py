@@ -86,12 +86,14 @@ def main(argv: list[str]) -> None:
     p.add_argument("snapshot_dir")
     p.add_argument("--as-of", dest="as_of", default=None, help="UTC snapshot date (YYYY-MM-DD)")
     p.add_argument("--out", dest="out_path", default=None, help="Optional output path for the manifest JSON")
-    p.add_argument(
-        "command",
-        nargs=argparse.REMAINDER,
-        help="Command used to produce the snapshot (precede with --, e.g. -- python src/etl/foo.py ...)",
-    )
-    args = p.parse_args(argv[1:])
+
+    # argparse + positional REMAINDER has surprising parsing behavior (optionals after positionals are treated as
+    # positional args). We manually split at `--` to keep UX predictable.
+    if "--" not in argv:
+        raise SystemExit("Missing command separator `--`. Example: -- python src/etl/foo.py ...")
+    sep_idx = argv.index("--")
+    args = p.parse_args(argv[1:sep_idx])
+    command_tokens = argv[sep_idx + 1 :]
 
     source = args.source
     snapshot_dir = Path(args.snapshot_dir)
@@ -105,15 +107,9 @@ def main(argv: list[str]) -> None:
     if as_of is None:
         raise SystemExit("Missing --as-of and could not infer date from snapshot_dir folder name (expected .../<YYYY-MM-DD>/)")
 
-    if not args.command:
+    if not command_tokens:
         raise SystemExit("Missing command. Provide it after --, e.g. -- python src/etl/foo.py --run-date ...")
-    if args.command and args.command[0] == "--":
-        cmd_tokens = args.command[1:]
-    else:
-        cmd_tokens = args.command
-    if not cmd_tokens:
-        raise SystemExit("Missing command tokens after --")
-    command = " ".join(shlex.quote(t) for t in cmd_tokens)
+    command = " ".join(shlex.quote(t) for t in command_tokens)
 
     manifest = build_manifest(source=source, snapshot_dir=snapshot_dir, command=command, as_of=as_of)
     out_dir = _repo_root() / "data/raw_manifest"

@@ -82,6 +82,12 @@ make test
 
 If `make gate` fails, do **not** start the swarm. Fix the gate failures first.
 
+If you will run on-chain tasks, also run:
+
+```bash
+make preflight-onchain
+```
+
 ### 3) Verify required CLIs exist *in this environment*
 
 The swarm defaults to `runner=tmux` for parallelism. If you don’t have tmux, use `--runner local` (covered below).

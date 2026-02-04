@@ -1,0 +1,78 @@
+{
+  "inputs": {
+    "date_max_utc": "2024-03-31",
+    "date_min_utc": "2024-02-20",
+    "dencun_date_utc": "2024-03-13",
+    "dencun_index": 22,
+    "n_days": 41,
+    "panel_path": "data/samples/panels/daily_rollup_panel_v1_sample.csv",
+    "panel_sha256": "437ff47d9cf908ac9d234b21697b28faedaa4062a8ddc11098f83096ec7e3065"
+  },
+  "notes": [
+    "P-values use a normal approximation (stdlib-only, no external stats deps).",
+    "Newey\u2013West HAC is implemented for time-ordered daily aggregates; interpret panel-style controls cautiously."
+  ],
+  "ok": true,
+  "summary": {
+    "str_max": 0.2728606479820628,
+    "str_mean_all": 0.20663424987706677,
+    "str_mean_post": 0.13109559713449792,
+    "str_mean_pre": 0.271872177245649,
+    "str_min": 0.13070366363995264
+  },
+  "tests": {
+    "dencun_break_mean_shift": {
+      "beta_post": -0.14077658011115107,
+      "lags": 3,
+      "p_post_normal_approx": 0.0,
+      "r2": 0.9999597496799475,
+      "se_post": 7.92933325481183e-05,
+      "t_post": -1775.3898794166878
+    },
+    "dencun_break_trend_change": {
+      "beta_post_level": -0.14056011709037453,
+      "beta_post_slope": -1.8124652047257772e-06,
+      "lags": 3,
+      "p_post_level_normal_approx": 0.0,
+      "p_post_slope_normal_approx": 0.8873692335149574,
+      "r2": 0.9999602792229976,
+      "se_post_level": 0.0002442799057639721,
+      "se_post_slope": 1.2796837011562056e-05,
+      "t_post_level": -575.4059739411656,
+      "t_post_slope": -0.1416338430416984
+    },
+    "elasticity_log_rent_controls": {
+      "beta_log_fees": 1.2027878417117677,
+      "beta_log_txcount": -0.40166794566789576,
+      "beta_post": -0.7279201514440317,
+      "lags": 3,
+      "n_obs": 41,
+      "p_log_fees_normal_approx": 0.0,
+      "p_log_txcount_normal_approx": 3.434343920361016e-10,
+      "p_post_normal_approx": 0.0,
+      "r2": 0.9999705608340226,
+      "se_log_fees": 0.03255789917533427,
+      "se_log_txcount": 0.06398244940797716,
+      "se_post": 0.0005907238903717407,
+      "t_log_fees": 36.943042154974016,
+      "t_log_txcount": -6.277783194993108,
+      "t_post": -1232.2510792410203
+    },
+    "mann_kendall_trend": {
+      "n": 41.0,
+      "p_value": 5.1085589536370435e-08,
+      "s": -486.0,
+      "tau": -0.5926829268292683,
+      "z": -5.447489989206616
+    },
+    "newey_west_trend_regression": {
+      "beta_intercept": 0.3091942428629789,
+      "beta_time": -0.0051279996492956045,
+      "lags": 3,
+      "p_time_normal_approx": 0.0,
+      "r2": 0.7470284446334536,
+      "se_time": 0.0005242298345197215,
+      "t_time": -9.781968349805336
+    }
+  }
+}

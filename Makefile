@@ -3,6 +3,16 @@
 gate:
 	python scripts/quality_gates.py
 
+.PHONY: preflight
+
+preflight:
+	python scripts/preflight.py --profile base
+
+.PHONY: preflight-onchain
+
+preflight-onchain:
+	python scripts/preflight.py --profile onchain
+
 .PHONY: test
 
 test:
