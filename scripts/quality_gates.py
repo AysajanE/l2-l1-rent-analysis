@@ -17,6 +17,7 @@ import json
 import subprocess
 import csv
 import os
+from urllib.parse import urlparse
 
 
 @dataclass
@@ -158,7 +159,9 @@ def gate_repo_structure() -> GateResult:
         Path("registry"),
         Path("registry/AGENTS.md"),
         Path("registry/CHANGELOG.md"),
+        Path("registry/README.md"),
         Path("registry/rollup_registry_v1.csv"),
+        Path("registry/schemas/batcher_addresses_json_v1.schema.json"),
     ]
     mode = _parse_project_mode(Path("contracts/project.yaml"))
     if mode in {"empirical", "hybrid"}:
@@ -181,6 +184,227 @@ def gate_repo_structure() -> GateResult:
         )
     missing = [str(p) for p in required if not p.exists()]
     return GateResult(ok=(len(missing) == 0), details={"mode": mode, "missing": missing})
+
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_ROLLUP_ID_RE = re.compile(r"^[a-z0-9_]+$")
+
+
+def _is_valid_http_url(value: str) -> bool:
+    try:
+        parsed = urlparse(value)
+    except ValueError:
+        return False
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    return parsed.netloc != ""
+
+
+def _validate_batcher_addresses_json(obj: object) -> list[str]:
+    failures: list[str] = []
+    if not isinstance(obj, dict):
+        return ["top_level_not_object"]
+
+    allowed_top_keys = {"schema_version", "state", "addresses", "notes"}
+    extra_top_keys = sorted(k for k in obj.keys() if k not in allowed_top_keys)
+    if extra_top_keys:
+        failures.append(f"extra_top_keys:{','.join(extra_top_keys)}")
+
+    if obj.get("schema_version") != 1:
+        failures.append("schema_version_not_1")
+
+    state = obj.get("state")
+    if state not in {"unknown", "partial", "complete"}:
+        failures.append("invalid_state")
+
+    addresses = obj.get("addresses")
+    if not isinstance(addresses, list):
+        failures.append("addresses_not_list")
+        addresses = []
+
+    notes = obj.get("notes")
+    if notes is not None and not isinstance(notes, str):
+        failures.append("notes_not_string")
+
+    allowed_addr_keys = {
+        "address",
+        "role",
+        "evidence_url",
+        "verified_utc",
+        "start_date_utc",
+        "end_date_utc",
+        "notes",
+    }
+    required_addr_keys = {"address", "role", "evidence_url", "verified_utc"}
+    allowed_roles = {"batcher", "poster", "proposer", "sequencer", "other"}
+
+    for i, entry in enumerate(addresses):
+        if not isinstance(entry, dict):
+            failures.append(f"addresses[{i}]:not_object")
+            continue
+
+        extra_keys = sorted(k for k in entry.keys() if k not in allowed_addr_keys)
+        if extra_keys:
+            failures.append(f"addresses[{i}]:extra_keys:{','.join(extra_keys)}")
+
+        missing = sorted(k for k in required_addr_keys if k not in entry)
+        if missing:
+            failures.append(f"addresses[{i}]:missing_keys:{','.join(missing)}")
+            continue
+
+        address = entry.get("address")
+        if not isinstance(address, str) or not re.fullmatch(r"0x[0-9a-fA-F]{40}", address):
+            failures.append(f"addresses[{i}]:invalid_address")
+
+        role = entry.get("role")
+        if role not in allowed_roles:
+            failures.append(f"addresses[{i}]:invalid_role")
+
+        evidence_url = entry.get("evidence_url")
+        if not isinstance(evidence_url, str) or not _is_valid_http_url(evidence_url):
+            failures.append(f"addresses[{i}]:invalid_evidence_url")
+
+        verified_utc = entry.get("verified_utc")
+        if not isinstance(verified_utc, str) or _DATE_RE.fullmatch(verified_utc) is None:
+            failures.append(f"addresses[{i}]:invalid_verified_utc")
+
+        for date_key in ["start_date_utc", "end_date_utc"]:
+            v = entry.get(date_key)
+            if v is None:
+                continue
+            if not isinstance(v, str) or _DATE_RE.fullmatch(v) is None:
+                failures.append(f"addresses[{i}]:invalid_{date_key}")
+
+        entry_notes = entry.get("notes")
+        if entry_notes is not None and not isinstance(entry_notes, str):
+            failures.append(f"addresses[{i}]:notes_not_string")
+
+    return failures
+
+
+def gate_rollup_registry_integrity() -> GateResult:
+    """Validate that the rollup registry is non-empty and machine-parseable.
+
+    This gate prevents downstream ETL/tasks from implicitly assuming a populated
+    registry and silently drifting on identifier semantics.
+    """
+    path = Path("registry/rollup_registry_v1.csv")
+    if not path.exists():
+        return GateResult(ok=False, details={"missing": str(path)})
+
+    failures: list[str] = []
+    total_rows = 0
+    in_scope_rows = 0
+    rollup_ids: set[str] = set()
+
+    required_cols = {
+        "rollup_id",
+        "display_name",
+        "type",
+        "da_posting_method",
+        "origin_key",
+        "l2beat_slug",
+        "in_scope",
+        "batcher_addresses_json",
+        "evidence_url",
+        "verified_utc",
+        "status",
+        "start_date_utc",
+        "end_date_utc",
+    }
+
+    with path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        if reader.fieldnames is None:
+            return GateResult(ok=False, details={"path": str(path), "failures": ["missing_header"]})
+
+        missing = sorted(required_cols - set(reader.fieldnames))
+        if missing:
+            failures.append(f"missing_columns:{','.join(missing)}")
+
+        for row_idx, row in enumerate(reader, start=2):
+            total_rows += 1
+
+            rollup_id = (row.get("rollup_id") or "").strip()
+            if rollup_id == "":
+                failures.append(f"row{row_idx}:missing_rollup_id")
+                continue
+            if rollup_id in rollup_ids:
+                failures.append(f"row{row_idx}:duplicate_rollup_id:{rollup_id}")
+                continue
+            rollup_ids.add(rollup_id)
+            if _ROLLUP_ID_RE.fullmatch(rollup_id) is None:
+                failures.append(f"row{row_idx}:invalid_rollup_id:{rollup_id}")
+
+            raw_in_scope = (row.get("in_scope") or "").strip().lower()
+            if raw_in_scope in {"true", "1", "yes", "y"}:
+                in_scope = True
+            elif raw_in_scope in {"false", "0", "no", "n", ""}:
+                in_scope = False
+            else:
+                failures.append(f"row{row_idx}:invalid_in_scope:{raw_in_scope}")
+                in_scope = False
+
+            status = (row.get("status") or "").strip().lower() or "active"
+            if status not in {"active", "inactive", "deprecated"}:
+                failures.append(f"row{row_idx}:invalid_status:{status}")
+
+            start_date = (row.get("start_date_utc") or "").strip()
+            if start_date != "" and _DATE_RE.fullmatch(start_date) is None:
+                failures.append(f"row{row_idx}:invalid_start_date_utc:{start_date}")
+
+            end_date = (row.get("end_date_utc") or "").strip()
+            if end_date != "" and _DATE_RE.fullmatch(end_date) is None:
+                failures.append(f"row{row_idx}:invalid_end_date_utc:{end_date}")
+
+            if status == "inactive" and end_date == "":
+                failures.append(f"row{row_idx}:inactive_missing_end_date_utc")
+
+            if in_scope:
+                in_scope_rows += 1
+
+                origin_key = (row.get("origin_key") or "").strip()
+                if origin_key == "":
+                    failures.append(f"row{row_idx}:missing_origin_key_for_in_scope")
+
+                l2beat_slug = (row.get("l2beat_slug") or "").strip()
+                if l2beat_slug == "":
+                    failures.append(f"row{row_idx}:missing_l2beat_slug_for_in_scope")
+
+                evidence_url = (row.get("evidence_url") or "").strip()
+                if evidence_url == "":
+                    failures.append(f"row{row_idx}:missing_evidence_url_for_in_scope")
+                elif not _is_valid_http_url(evidence_url):
+                    failures.append(f"row{row_idx}:invalid_evidence_url_for_in_scope")
+
+                verified_utc = (row.get("verified_utc") or "").strip()
+                if verified_utc == "":
+                    failures.append(f"row{row_idx}:missing_verified_utc_for_in_scope")
+                elif _DATE_RE.fullmatch(verified_utc) is None:
+                    failures.append(f"row{row_idx}:invalid_verified_utc_for_in_scope:{verified_utc}")
+
+                raw_json = (row.get("batcher_addresses_json") or "").strip()
+                if raw_json == "":
+                    failures.append(f"row{row_idx}:missing_batcher_addresses_json_for_in_scope")
+                else:
+                    try:
+                        parsed = json.loads(raw_json)
+                    except json.JSONDecodeError as exc:
+                        failures.append(f"row{row_idx}:batcher_addresses_json_invalid_json:{exc.msg}")
+                    else:
+                        json_failures = _validate_batcher_addresses_json(parsed)
+                        for jf in json_failures:
+                            failures.append(f"row{row_idx}:batcher_addresses_json:{jf}")
+
+    if total_rows == 0:
+        failures.append("registry_has_no_rows")
+    if in_scope_rows == 0:
+        failures.append("registry_has_no_in_scope_rows")
+
+    return GateResult(
+        ok=(len(failures) == 0),
+        details={"path": str(path), "total_rows": total_rows, "in_scope_rows": in_scope_rows, "failures": failures},
+    )
 
 
 def gate_project_contract() -> GateResult:
@@ -730,6 +954,7 @@ def gate_sample_panel_integrity() -> GateResult:
 def main() -> None:
     results = {
         "repo_structure": gate_repo_structure(),
+        "rollup_registry_integrity": gate_rollup_registry_integrity(),
         "project_contract": gate_project_contract(),
         "environment": gate_environment(),
         "protocol_complete": gate_protocol_complete(),

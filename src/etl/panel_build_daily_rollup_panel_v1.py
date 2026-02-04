@@ -146,6 +146,10 @@ def load_registry(path: Path) -> dict[str, RegistryRow]:
                 start_date_utc=start,
                 end_date_utc=end,
             )
+    if len(rows) == 0:
+        raise SystemExit(
+            f"registry is empty (no rollup rows): {path}. Seed `registry/rollup_registry_v1.csv` (see `registry/README.md`)."
+        )
     return rows
 
 
