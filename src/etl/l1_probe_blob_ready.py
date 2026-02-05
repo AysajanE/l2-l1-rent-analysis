@@ -22,6 +22,8 @@ from src.etl.rpc_client import (  # noqa: E402
 
 
 GAS_PER_BLOB = 131072  # EIP-4844
+MIN_BASE_FEE_PER_BLOB_GAS = 1  # EIP-4844
+BLOB_BASE_FEE_UPDATE_FRACTION = 3338477  # EIP-4844
 
 
 def _rpc_client(rpc_url: str | None) -> RpcClient:
@@ -75,6 +77,35 @@ def _safe_len(value: Any) -> int | None:
     if isinstance(value, list):
         return len(value)
     return None
+
+
+def _fake_exponential(*, factor: int, numerator: int, denominator: int) -> int:
+    """EIP-4844 fake_exponential (Taylor expansion approximation).
+
+    Approximates: factor * e ** (numerator / denominator)
+    Reference: https://eips.ethereum.org/EIPS/eip-4844
+    """
+    if factor < 0 or numerator < 0 or denominator <= 0:
+        raise ValueError("invalid inputs")
+
+    i = 1
+    output = 0
+    numerator_accum = factor * denominator
+    while numerator_accum > 0:
+        output += numerator_accum
+        numerator_accum = (numerator_accum * numerator) // (denominator * i)
+        i += 1
+    return output // denominator
+
+
+def _base_fee_per_blob_gas_wei_from_excess_blob_gas(excess_blob_gas: int) -> int:
+    if excess_blob_gas < 0:
+        raise ValueError("excess_blob_gas must be >= 0")
+    return _fake_exponential(
+        factor=MIN_BASE_FEE_PER_BLOB_GAS,
+        numerator=excess_blob_gas,
+        denominator=BLOB_BASE_FEE_UPDATE_FRACTION,
+    )
 
 
 def cmd_probe(
@@ -138,12 +169,45 @@ def cmd_probe(
     blob_count = _safe_len(blob_versioned_hashes)
     derived_blob_gas_used = blob_count * GAS_PER_BLOB if blob_count is not None else None
 
-    burn_blob_wei: int | None = None
-    if receipt_ok:
+    # Preferred: receipt fields (post-Dencun).
+    blob_gas_used: int | None = None
+    base_fee_per_blob_gas_wei: int | None = None
+    blob_gas_used_source: str | None = None
+    base_fee_per_blob_gas_source: str | None = None
+
+    if receipt_blob_gas_used is not None:
         try:
-            burn_blob_wei = hex_quantity_to_int(receipt_blob_gas_used) * hex_quantity_to_int(receipt_blob_gas_price)
+            blob_gas_used = hex_quantity_to_int(receipt_blob_gas_used)
+            blob_gas_used_source = "receipt.blobGasUsed"
         except Exception:
-            burn_blob_wei = None
+            blob_gas_used = None
+
+    if receipt_blob_gas_price is not None:
+        try:
+            base_fee_per_blob_gas_wei = hex_quantity_to_int(receipt_blob_gas_price)
+            base_fee_per_blob_gas_source = "receipt.blobGasPrice"
+        except Exception:
+            base_fee_per_blob_gas_wei = None
+
+    # Fallbacks (EIP-4844): derive blob gas used from payload hashes, and base fee per blob gas from header excessBlobGas.
+    if blob_gas_used is None and derived_blob_gas_used is not None:
+        blob_gas_used = int(derived_blob_gas_used)
+        blob_gas_used_source = "tx.blobVersionedHashes_count*GAS_PER_BLOB"
+
+    header_excess_blob_gas = block.get("excessBlobGas")
+    header_base_fee_per_blob_gas_wei: int | None = None
+    if base_fee_per_blob_gas_wei is None and header_excess_blob_gas is not None:
+        try:
+            excess = hex_quantity_to_int(header_excess_blob_gas)
+            header_base_fee_per_blob_gas_wei = _base_fee_per_blob_gas_wei_from_excess_blob_gas(excess)
+            base_fee_per_blob_gas_wei = header_base_fee_per_blob_gas_wei
+            base_fee_per_blob_gas_source = "header.excessBlobGas->EIP4844.fake_exponential"
+        except Exception:
+            header_base_fee_per_blob_gas_wei = None
+
+    burn_blob_wei: int | None = None
+    if blob_gas_used is not None and base_fee_per_blob_gas_wei is not None:
+        burn_blob_wei = int(blob_gas_used) * int(base_fee_per_blob_gas_wei)
 
     out: dict[str, object] = {
         "ok": bool(receipt_ok and burn_blob_wei is not None),
@@ -171,20 +235,26 @@ def cmd_probe(
         },
         "derived": {
             "derived_blob_gas_used_from_hashes": derived_blob_gas_used,
+            "base_fee_per_blob_gas_wei_from_excessBlobGas": header_base_fee_per_blob_gas_wei,
+            "blob_gas_used_source": blob_gas_used_source,
+            "base_fee_per_blob_gas_source": base_fee_per_blob_gas_source,
             "burn_blob_wei": burn_blob_wei,
         },
         "acceptance": {
             "type3_tx_found": True,
             "receipt_has_blob_fields": bool(receipt_ok),
+            "can_derive_blob_gas_used": bool(derived_blob_gas_used is not None),
+            "can_derive_base_fee_per_blob_gas_wei": bool(header_base_fee_per_blob_gas_wei is not None),
             "can_compute_burn_blob_wei": bool(burn_blob_wei is not None),
         },
     }
 
+    out["ok"] = bool(burn_blob_wei is not None)
     if not out["ok"]:
         out["reason"] = "missing_required_blob_fields"
         out["notes"] = [
-            "Required for blob readiness: receipt must include blobGasUsed and blobGasPrice for at least one type-3 tx.",
-            "If your provider omits these fields, switch to an 'enhanced' provider or adjust extraction to compute from header per protocol.",
+            "Required for blob readiness: ability to compute burn_blob_wei for at least one type-3 tx using integer wei math.",
+            "Preferred: receipt includes blobGasUsed and blobGasPrice. Fallbacks: blob gas from tx.blobVersionedHashes and base fee per blob gas from block excessBlobGas per EIP-4844.",
         ]
 
     text = json.dumps(out, indent=2, sort_keys=True) + "\n"

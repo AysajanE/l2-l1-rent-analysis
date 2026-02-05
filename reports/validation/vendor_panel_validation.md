@@ -1,12 +1,19 @@
 # Vendor panel validation
 
-- Status: **MISSING INPUTS**
+- Status: **PASS**
 
 ## Inputs
-- data/samples/growthepie/vendor_daily_rollup_panel_sample.csv (exists=False)
+- data/samples/growthepie/vendor_daily_rollup_panel_sample.csv (exists=True)
 
-## Failures
-- [inputs] missing_input_csv
-
-## Next steps
-- Generate the committed sample via W1 growthepie ETL (T030), then rerun: python src/validation/validate_vendor_panel.py --sample
+## Metrics
+- daily_str_max: 0.2728606479820628
+- daily_str_min: 0.1054202770259513
+- daily_str_points: 71
+- date_max: 2024-04-30
+- date_min: 2024-02-20
+- negative_value_rows: 0
+- rows: 213
+- unique_dates: 71
+- unique_rollups: 3
+- vendor_identity_checked_rows: 213
+- vendor_identity_failed_rows: 0

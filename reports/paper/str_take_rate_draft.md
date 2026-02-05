@@ -29,7 +29,7 @@ Sample-mode artifact used for CI/determinism checks:
 ### 2.2 Provenance
 
 - Sample panel build manifest:
-  - `data/processed_manifest/daily_rollup_panel_v1_sample_2026-02-04.json`
+  - `data/processed_manifest/daily_rollup_panel_v1_sample_2026-02-05.json`
 
 ## 3. Methods (empirical tests)
 
@@ -77,4 +77,3 @@ python src/etl/panel_build_daily_rollup_panel_v1.py --sample --write-manifest --
 # Generate sample-mode empirical outputs (writes into reports/)
 python src/analysis/str_empirical_tests.py --sample
 ```
-

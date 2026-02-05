@@ -22,6 +22,7 @@ import argparse
 import csv
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -83,12 +84,115 @@ def _parse_decimal(value: str, *, label: str) -> Decimal:
         d = Decimal(value)
     except (InvalidOperation, ValueError) as exc:
         raise SystemExit(f"Invalid decimal in {label}: {value!r}") from exc
+    if not d.is_finite():
+        raise SystemExit(f"Non-finite decimal in {label}: {value!r}")
     return d
 
 
 def _format_decimal(value: Decimal) -> str:
     # Avoid scientific notation in CSV.
     return format(value, "f")
+
+
+def _unquote_yaml_scalar(value: str) -> str:
+    v = value.strip()
+    if len(v) >= 2 and ((v[0] == v[-1] == '"') or (v[0] == v[-1] == "'")):
+        return v[1:-1]
+    return v
+
+
+def _load_schema_fields(schema_path: Path) -> tuple[tuple[str, ...], dict[str, bool]]:
+    """Parse a minimal subset of the YAML panel schema (stdlib-only).
+
+    We intentionally avoid a YAML dependency at bootstrap. This loader only
+    supports the simple structure used in `contracts/schemas/panel_schema_str_v1.yaml`:
+
+      fields:
+        - name: foo
+          nullable: false
+        - name: bar
+          nullable: true
+    """
+    if not schema_path.exists():
+        raise SystemExit(f"schema not found: {schema_path}")
+
+    text = schema_path.read_text(encoding="utf-8")
+    fields: list[str] = []
+    seen: set[str] = set()
+    nullable: dict[str, bool] = {}
+    in_fields = False
+    current_field: str | None = None
+
+    for raw_line in text.splitlines():
+        line = raw_line.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+
+        if not in_fields:
+            if line.strip() == "fields:":
+                in_fields = True
+            continue
+
+        # Stop if we hit a new top-level key.
+        if not line.startswith(" ") and re.match(r"^[A-Za-z0-9_-]+\s*:", line.strip()):
+            break
+
+        m_name = re.match(r"^\s*-\s*name:\s*(.+?)\s*$", line)
+        if m_name:
+            name = _unquote_yaml_scalar(m_name.group(1))
+            if name == "":
+                raise SystemExit(f"schema field name is empty: {schema_path}")
+            if name in seen:
+                raise SystemExit(f"schema has duplicate field name {name!r}: {schema_path}")
+            seen.add(name)
+            fields.append(name)
+            current_field = name
+            continue
+
+        m_nullable = re.match(r"^\s*nullable:\s*(true|false)\s*$", line.strip(), flags=re.IGNORECASE)
+        if m_nullable and current_field is not None:
+            nullable[current_field] = m_nullable.group(1).lower() == "true"
+
+    if not fields:
+        raise SystemExit(f"schema has no fields (expected fields: ...): {schema_path}")
+    missing_nullable = [f for f in fields if f not in nullable]
+    if missing_nullable:
+        raise SystemExit(f"schema fields missing `nullable` flag: {missing_nullable} ({schema_path})")
+
+    return tuple(fields), nullable
+
+
+def _assert_contract_v1(*, schema_path: Path) -> dict[str, object]:
+    """Fail fast if the locked contract v1 schema drifts."""
+    schema_fields, schema_nullable = _load_schema_fields(schema_path)
+
+    if schema_fields != PANEL_OUTPUT_COLUMNS:
+        raise SystemExit(
+            "Contract v1 mismatch: schema field order differs from builder output.\n"
+            f"- schema_path: {schema_path}\n"
+            f"- schema_fields: {list(schema_fields)}\n"
+            f"- expected_fields: {list(PANEL_OUTPUT_COLUMNS)}\n"
+            "Update the builder to match the locked schema, or update the schema with a W0 decision."
+        )
+
+    required_from_schema = tuple([f for f in schema_fields if not schema_nullable[f]])
+    if required_from_schema != PANEL_REQUIRED_COLUMNS:
+        raise SystemExit(
+            "Contract v1 mismatch: schema required fields differ from builder expectations.\n"
+            f"- schema_path: {schema_path}\n"
+            f"- schema_required_fields: {list(required_from_schema)}\n"
+            f"- expected_required_fields: {list(PANEL_REQUIRED_COLUMNS)}\n"
+        )
+
+    core = ("l2_fees_eth", "rent_paid_eth")
+    missing_core = [c for c in core if c not in required_from_schema]
+    if missing_core:
+        raise SystemExit(f"Contract v1 mismatch: core fields must be non-nullable in schema: {missing_core} ({schema_path})")
+
+    return {
+        "schema_fields": list(schema_fields),
+        "schema_required_fields": list(required_from_schema),
+    }
 
 
 @dataclass(frozen=True)
@@ -340,6 +444,8 @@ def main(argv: list[str]) -> None:
 
     registry_path = Path(args.registry)
     schema_path = Path(args.schema)
+    schema_abs = schema_path if schema_path.is_absolute() else (root / schema_path)
+    contract_meta = _assert_contract_v1(schema_path=schema_abs)
 
     if args.sample:
         input_csv = root / "data/samples/panels/daily_rollup_panel_v1_sample.csv"
@@ -371,15 +477,26 @@ def main(argv: list[str]) -> None:
             manifest_inputs.append(pth if pth.is_absolute() else (root / pth))
 
         out_abs = out_csv if out_csv.is_absolute() else (root / out_csv)
+        output_rollups = sorted({str(r["rollup_id"]) for r in rows})
+        output_dates = sorted({str(r["date_utc"]) for r in rows})
         meta = {
             "panel_schema_version": 1,
             "schema_path": str(_ensure_within_repo(root, (schema_path if schema_path.is_absolute() else (root / schema_path)).resolve())),
             "schema_sha256": _sha256_file((schema_path if schema_path.is_absolute() else (root / schema_path)).resolve()),
             "registry_path": str(_ensure_within_repo(root, (registry_path if registry_path.is_absolute() else (root / registry_path)).resolve())),
             "registry_sha256": _sha256_file((registry_path if registry_path.is_absolute() else (root / registry_path)).resolve()),
+            "contract_assertions": contract_meta,
             "universe": {
                 "registry_in_scope_rollups": sorted([k for k, v in registry.items() if v.in_scope and v.status != "deprecated"]),
-                "panel_rollups_in_output": sorted({str(r["rollup_id"]) for r in rows}),
+                "panel_rollups_in_output": output_rollups,
+                "panel_date_min": (min(output_dates) if output_dates else None),
+                "panel_date_max": (max(output_dates) if output_dates else None),
+                "registry_filter_rules": {
+                    "in_scope_required": True,
+                    "excluded_statuses": ["deprecated"],
+                    "window_rule": "start_date_utc <= date_utc <= end_date_utc (when set); inactive requires end_date_utc",
+                    "row_inclusion_rule": "emit row iff l2_fees_eth and rent_paid_eth present (missingness encoded by row omission, not nulls)",
+                },
             },
             "counts": counts,
         }

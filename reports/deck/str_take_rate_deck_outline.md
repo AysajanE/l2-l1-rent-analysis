@@ -16,7 +16,7 @@ This is a slide outline that references only repo-present artifacts.
 
 - Panel schema v1: `contracts/schemas/panel_schema_str_v1.yaml`
 - Sample panel: `data/samples/panels/daily_rollup_panel_v1_sample.csv`
-- Sample panel manifest: `data/processed_manifest/daily_rollup_panel_v1_sample_2026-02-04.json`
+- Sample panel manifest: `data/processed_manifest/daily_rollup_panel_v1_sample_2026-02-05.json`
 
 ## Slide 4 — Empirical tests (why they matter)
 
@@ -36,4 +36,3 @@ Note: these are synthetic results; replace with full-panel outputs when availabl
 
 - Build v1/v2 panels under `src/etl/panel_*`
 - Add decomposition/regime outputs under `reports/tables/` and `reports/figures/`
-
