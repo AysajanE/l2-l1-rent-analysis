@@ -6,6 +6,7 @@ role: Worker
 priority: medium
 dependencies:
   - "T096"
+  - "T097"
 parallel_ok: true
 allowed_paths:
   - "src/etl/issuance_fetch.py"
@@ -30,7 +31,6 @@ outputs:
 gates:
   - "make gate"
 stop_conditions:
-  - "Definition ambiguity (issuance definition/source mismatch)"
   - "Need API credentials"
 ---
 
@@ -38,14 +38,19 @@ stop_conditions:
 
 ## Context
 
-For “burn vs issuance” style outputs and related interpretation, we need a daily ETH issuance series with documented provenance. There are multiple possible issuance definitions (consensus issuance, net issuance, supply change); this task must lock one and document it.
+For “burn vs issuance” style outputs and related interpretation, we need a daily ETH issuance series with documented provenance.
+
+**Issuance definition is locked in W0** (see T097 + `contracts/schemas/issuance_daily_v1.yaml` + `contracts/decisions.md`); this W1 task must implement the ETL deterministically against that contract (no new definition choices here).
 
 ## Inputs
 
-- Candidate issuance sources (choose one primary + one secondary tolerance check):
-  - Ultrasound.money API
-  - Beacon chain / protocol issuance datasets
-  - Other reputable public datasets (must be cited in the task notes)
+- Locked definition + schema (read-only):
+  - `docs/protocol.md` (issuance definition + source policy)
+  - `contracts/schemas/issuance_daily_v1.yaml`
+  - `contracts/decisions.md` (issuance decision entry)
+- Sources (per W0 decision; do not substitute without `@human`):
+  - Primary: `ultrasound.money` daily issuance series (snapshotted)
+  - Secondary: beacon-chain explorer / consensus feed for tolerance checks
 
 ## Outputs
 
@@ -53,13 +58,13 @@ For “burn vs issuance” style outputs and related interpretation, we need a d
 - Raw snapshots (append-only): `data/raw/issuance/<YYYY-MM-DD>/...`
 - Raw manifest (tracked): `data/raw_manifest/issuance_<YYYY-MM-DD>.json`
 - Normalized issuance table (not committed): `data/processed/issuance/issuance_daily.parquet`
-  - Include: `date_utc`, `issuance_eth` (and any additional fields only if clearly defined).
+  - Must conform to `contracts/schemas/issuance_daily_v1.yaml` (include `date_utc`, `issuance_eth`, `source`, optional `method`).
 - Processed manifest (tracked): `data/processed_manifest/issuance_daily_<YYYY-MM-DD>.json`
 - Golden sample (tracked): `data/samples/issuance/issuance_daily_sample.csv`
 
 ## Success Criteria
 
-- [ ] Issuance definition is explicit and reproducible from the chosen source
+- [ ] Output conforms to `contracts/schemas/issuance_daily_v1.yaml` (daily UTC grain; `issuance_eth` in ETH; `source` set consistently)
 - [ ] Raw manifest exists and is append-only
 - [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Golden sample is committed and stable
@@ -68,8 +73,9 @@ For “burn vs issuance” style outputs and related interpretation, we need a d
 ## Status
 
 - State: backlog
-- Last updated: 2026-02-04
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner); issuance is needed for “burn vs issuance” context and counterfactual framing.
+- 2026-02-05: Wired dependency on W0 issuance-definition lock (T097); W1 ETL must implement the locked `issuance_daily_v1` contract.
