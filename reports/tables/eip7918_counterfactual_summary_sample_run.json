@@ -1,0 +1,41 @@
+{
+  "assumptions": {
+    "assumption_ids": [
+      "A001"
+    ],
+    "constants": {
+      "BLOB_BASE_COST": 8192,
+      "GAS_PER_BLOB": 131072,
+      "WEI_PER_ETH": 1000000000000000000
+    },
+    "dencun_date_utc": "2024-03-13",
+    "description": "Applied-floor counterfactual (no equilibrium simulation).",
+    "formulas": {
+      "base_fee_per_blob_gas_cf_wei": "max(base_fee_per_blob_gas_wei, reserve_blob_base_fee_wei)",
+      "reserve_blob_base_fee_wei": "floor(BLOB_BASE_COST * base_fee_per_gas_wei / GAS_PER_BLOB)"
+    }
+  },
+  "command": "\"src/analysis/counterfactual_eip7918.py\" \"--sample\"",
+  "created_at_utc": "2026-02-05T17:25:25.598391+00:00",
+  "git_sha": "89a08fb0ee6f3f91d040705f2ae43f3c47ee768c",
+  "inputs": [
+    {
+      "bytes": 27148,
+      "path": "data/samples/panels/daily_rollup_panel_v2_sample.csv",
+      "sha256": "6cec5c25cf5207aaa9b914dcb56fdad175a028fa2cb6f2553b8b550a4a5d0d04"
+    }
+  ],
+  "outputs": [
+    {
+      "bytes": 11284,
+      "path": "reports/tables/eip7918_counterfactual_summary_sample.csv",
+      "sha256": "9054cfaa258289b3ac962bfed05925c3b442cd42083234f96734abbb66293f8e"
+    },
+    {
+      "bytes": 5812,
+      "path": "reports/figures/eip7918_counterfactual_sample.svg",
+      "sha256": "97ee009eb7deb67554e5c5f14f83fecb629dbaaa304e6b2dad8a36e02593e8bb"
+    }
+  ],
+  "script_path": "src/analysis/counterfactual_eip7918.py"
+}
