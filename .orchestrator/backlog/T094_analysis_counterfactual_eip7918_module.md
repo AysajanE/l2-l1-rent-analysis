@@ -7,6 +7,7 @@ priority: medium
 dependencies:
   - "T090"
   - "T093"
+  - "T098"
 allowed_paths:
   - "src/analysis/counterfactual_eip7918.py"
   - "reports/figures/eip7918_counterfactual.svg"
@@ -39,7 +40,10 @@ This task implements a deterministic counterfactual module using the enriched v2
 
 - `data/processed/panels/daily_rollup_panel_v2.parquet` (not committed; built by T090)
 - `docs/end_to_end_research_plan.md` (read-only): counterfactual intent and presentation requirements
-- `docs/protocol.md` (read-only): regime definitions and tolerances
+- W0 locks (read-only; must not introduce new assumptions in W6):
+  - `docs/protocol.md`: EIP-7918 parameterization + regime definitions
+  - `contracts/assumptions.md`: A001 (applied-floor counterfactual assumption)
+  - `contracts/decisions.md`: EIP-7918 decision entry + expected inputs/units
 
 ## Outputs
 
@@ -51,16 +55,16 @@ This task implements a deterministic counterfactual module using the enriched v2
 
 ## Success Criteria
 
-- [ ] Assumptions are explicit and do not contradict protocol; if new assumptions are required, block with `@human`
+- [ ] Assumptions are explicit and match the W0 locks (T098); if new assumptions are required, block with `@human`
 - [ ] Outputs are reproducible from local processed inputs only
 - [ ] `make gate` passes
 
 ## Status
 
 - State: backlog
-- Last updated: 2026-01-30
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to implement the policy counterfactual module in a reproducible way.
-
+- 2026-02-05: Wired dependency on W0 counterfactual-assumptions lock (T098) to prevent runtime blocking/assumption drift.
