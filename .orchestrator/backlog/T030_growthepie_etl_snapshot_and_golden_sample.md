@@ -6,6 +6,7 @@ role: Worker
 priority: high
 dependencies:
   - "T020"
+  - "T081"
 allowed_paths:
   - "src/etl/growthepie_fetch.py"
   - "data/raw/growthepie/"
@@ -47,6 +48,7 @@ This task builds a reproducible ETL that:
 
 - `docs/protocol.md` (read-only): primary metric units + source priority
 - `contracts/schemas/panel_schema_str_v1.yaml` (read-only): expected fields for the STR panel
+- `registry/rollup_registry_v1.csv` (read-only): deterministic `origin_key -> rollup_id` mapping (canonical rule: `rollup_id == origin_key` for growthepie-covered rollups; see `registry/README.md`)
 - growthepie API:
   - `https://api.growthepie.com/v1/master.json`
   - `https://api.growthepie.com/v1/export/{metric_key}.json`
@@ -62,6 +64,7 @@ This task builds a reproducible ETL that:
   - Use `python scripts/make_raw_manifest.py ...` and ensure it includes file hashes and the exact repro command.
 - Local processed artifact (not committed): `data/processed/growthepie/vendor_daily_rollup_panel.csv`
   - Minimal columns should align with the schema contract from T020 (date, rollup_id, fees/rent/profit, units explicit).
+  - `rollup_id` must be mapped deterministically from growthepie `origin_key` via `registry/rollup_registry_v1.csv` (do not invent ad-hoc joins in W1).
 - Golden sample (tracked): `data/samples/growthepie/vendor_daily_rollup_panel_sample.csv`
   - Must be tiny (seconds to load).
   - Choose a fixed, documented date range and a small rollup subset.
@@ -85,7 +88,7 @@ This task builds a reproducible ETL that:
 ## Status
 
 - State: backlog
-- Last updated: 2026-01-22
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 

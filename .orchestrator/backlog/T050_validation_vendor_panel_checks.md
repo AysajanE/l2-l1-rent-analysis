@@ -47,8 +47,12 @@ This task creates a validation script that consumes only local artifacts (sample
 - `src/validation/validate_vendor_panel.py`
   - Must be deterministic and must not call the network.
   - Should support `--sample` mode (default) that reads from `data/samples/`.
+  - Must follow the repo validation CLI contract (`src/validation/AGENTS.md`):
+    - exit codes: `0` pass, `2` fail (beyond tolerance), `3` missing required inputs/schema mismatch
+    - strict JSON summary with keys: `ok`, `inputs`, `metrics`, `failures`
 - `reports/validation/vendor_panel_validation.json`
   - Include pass/fail, summary stats, and pointers to inputs used.
+  - `failures[]` entries must include pointers to offending rows where applicable (date/rollup/row index).
 - `reports/validation/vendor_panel_validation.md`
   - Short narrative: what passed/failed + minimal next experiment.
 
@@ -72,7 +76,7 @@ Suggested checks (keep small, but useful):
 
 ## Status
 - State: backlog
-- Last updated: 2026-01-22
+- Last updated: 2026-02-05
 ## Notes / Decisions
 
 - 2026-01-22: Task created (Planner) to add deterministic validation before analysis.

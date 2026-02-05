@@ -55,10 +55,14 @@ This task implements deterministic validation scripts and emits both machine-rea
   - Should support:
     - `--sample` mode (uses committed samples if present)
     - `--full` mode (reads from `data/processed/`)
+  - Must follow the repo validation CLI contract (`src/validation/AGENTS.md`):
+    - exit codes: `0` pass, `2` fail (beyond tolerance), `3` missing required inputs/schema mismatch
+    - strict JSON summary with keys: `ok`, `inputs`, `metrics`, `failures`
 - `reports/validation/cross_source_validation.json`
   - Include pass/fail + key metrics:
     - monthly reconciliation deltas for top rollups
     - blobGasUsed tolerance check on a sample month (Blobscan vs on-chain extraction, if both available)
+  - `failures[]` entries must include pointers to offending rows (date/rollup) where applicable.
 - `reports/validation/cross_source_validation.md`
   - Summarize findings and the smallest next experiment if something fails.
 
@@ -71,9 +75,8 @@ This task implements deterministic validation scripts and emits both machine-rea
 ## Status
 
 - State: backlog
-- Last updated: 2026-01-30
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to enforce “anti-dashboard-science” cross-source reconciliation before analysis.
-

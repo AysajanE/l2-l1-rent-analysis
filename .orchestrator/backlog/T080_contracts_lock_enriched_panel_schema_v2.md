@@ -56,6 +56,10 @@ This task defines a versioned v2 schema (without breaking v1), updates the data 
   - Must clearly separate:
     - required STR-minimum fields (v1-compatible core), vs
     - optional enrichment fields (nullability + units explicit).
+  - Blob fee regime inputs must be integer-safe:
+    - require `l1_base_fee_per_gas_wei` (execution base fee; integer wei per gas)
+    - include `l1_blob_base_fee_wei` (integer wei per blob gas) as the canonical blob base fee series for regime classification
+    - if a gwei presentation field is included anywhere, mark it presentation-only (no regime computation from floats)
 - `contracts/schemas/panel_schema.yaml`
   - Must reference the new versioned schema file(s) without removing v1.
 - `contracts/data_dictionary.md`
@@ -79,7 +83,7 @@ This task defines a versioned v2 schema (without breaking v1), updates the data 
 ## Status
 
 - State: backlog
-- Last updated: 2026-01-30
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 

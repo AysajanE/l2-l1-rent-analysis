@@ -54,7 +54,12 @@ This task snapshots Blobscan outputs (append-only), normalizes a daily aggregate
   - Must snapshot raw responses to `data/raw/blobscan/<YYYY-MM-DD>/...` (append-only).
 - Raw manifest (tracked): `data/raw_manifest/blobscan_<YYYY-MM-DD>.json`
 - Normalized daily table (not committed): `data/processed/blobscan/blobscan_daily.parquet`
-  - Include at minimum: `date_utc`, `blob_base_fee_gwei` (or explicit wei field), `blob_gas_used`, `blob_tx_count`.
+  - Include at minimum (integer-safe; per `docs/protocol.md`):
+    - `date_utc`
+    - `l1_blob_base_fee_wei` (integer wei per blob gas; canonical for regime classification)
+    - `l1_blob_gas_used` (integer blob gas)
+    - `l1_blob_tx_count` (integer; if available)
+  - If you store `l1_blob_base_fee_gwei`, treat it as presentation-only derived from wei; do not compute regimes from gwei floats.
 - Processed manifest (tracked): `data/processed_manifest/blobscan_daily_<YYYY-MM-DD>.json`
 - Golden sample (tracked): `data/samples/blobscan/blobscan_daily_sample.csv`
 
@@ -69,7 +74,7 @@ This task snapshots Blobscan outputs (append-only), normalizes a daily aggregate
 ## Status
 
 - State: backlog
-- Last updated: 2026-02-04
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 

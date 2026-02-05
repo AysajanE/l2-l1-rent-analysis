@@ -62,6 +62,9 @@ Outputs should be rebuildable from raw snapshots and should include a committed 
     - include at minimum: `date_utc`, `rollup_id`, `rent_paid_eth`
   - `data/processed/onchain/rollup_costs_decomposition_daily.parquet`
     - include component columns with explicit units (ETH) and clear nullability rules.
+    - for precision safety, also include the integer-safe wei columns defined in the contract:
+      `rent_paid_wei`, `rent_base_fee_burn_wei`, `rent_blob_fee_burn_wei`, `rent_priority_fee_wei`
+    - do not compute or store blob fee components using floating-point gwei; use integer wei inputs per `docs/protocol.md`.
 - Processed manifest (tracked): `data/processed_manifest/onchain_rollup_costs_<YYYY-MM-DD>.json`
 - Golden sample (tracked): `data/samples/l1/rollup_costs_daily_sample.csv`
   - small fixed window + subset of rollups; enough to validate attribution logic deterministically.
@@ -77,7 +80,7 @@ Outputs should be rebuildable from raw snapshots and should include a committed 
 ## Status
 
 - State: backlog
-- Last updated: 2026-02-04
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 
