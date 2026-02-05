@@ -60,6 +60,7 @@ Describe the source, what we’re pulling, and how it connects to downstream met
 
 - [ ] Raw snapshot is written to a dated folder (never overwritten)
 - [ ] Manifest exists, includes hashes, and describes how to reproduce the pull
+- [ ] Output schema is asserted (required columns/types); if a contract schema exists under `contracts/schemas/`, validate against it and fail fast on mismatch
 - [ ] Any transformations are code (no manual edits)
 - [ ] `make gate` passes
 

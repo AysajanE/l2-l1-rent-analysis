@@ -64,6 +64,7 @@ and any other enrichment explicitly defined in the v2 contract.
 ## Success Criteria
 
 - [ ] Output conforms to the v2 contract (field list + units + nullability)
+- [ ] Output schema is asserted against `contracts/schemas/panel_schema_str_v2.yaml` (fail fast on missing/invalid columns)
 - [ ] Join semantics are explicit and deterministic (document in code and manifest)
 - [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` (append-only; includes input manifests + output hashes)
 - [ ] Golden sample is committed and stable

@@ -76,6 +76,7 @@ This task builds a reproducible ETL that:
 - [ ] Running the ETL writes a dated snapshot under `data/raw/growthepie/<run-date>/` without overwriting existing snapshots
 - [ ] Manifest exists under `data/raw_manifest/` and validates via `make gate`
 - [ ] Processed panel CSV is produced deterministically from the raw snapshot
+- [ ] Processed panel schema is asserted (at minimum: required STR columns per `contracts/schemas/panel_schema_str_v1.yaml`; fail fast on missing/invalid columns)
 - [ ] Golden sample CSV is committed and is stable (fixed date range + rollups documented in-file or in a small README next to it)
 - [ ] `make gate` passes
 

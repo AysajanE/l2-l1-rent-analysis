@@ -60,6 +60,7 @@ USD series are explicitly secondary in `docs/protocol.md`, but are useful for in
 
 - [ ] Daily series covers the protocol window (2022-01-01 → present, with documented endpoints)
 - [ ] Raw manifest exists and is append-only
+- [ ] Normalized table schema is asserted (required columns at minimum: `date_utc`, `eth_usd_close`; fail fast on missing/invalid columns)
 - [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Golden sample is committed and stable
 - [ ] `make gate` passes

@@ -68,6 +68,7 @@ This task snapshots Blobscan outputs (append-only), normalizes a daily aggregate
 
 - [ ] Raw snapshots are append-only and reproducible
 - [ ] Raw manifest exists and is append-only
+- [ ] Normalized table schema is asserted (required columns at minimum: `date_utc`, `l1_blob_base_fee_wei`, `l1_blob_gas_used`; fail fast on missing/invalid columns)
 - [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Golden sample is committed and stable
 - [ ] `make gate` passes

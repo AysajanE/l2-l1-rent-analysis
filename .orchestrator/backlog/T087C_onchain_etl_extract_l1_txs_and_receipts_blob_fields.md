@@ -81,6 +81,7 @@ It is intentionally scoped to txs+receipts only, with explicit join keys, and de
 - [ ] Raw manifest exists and validates via `make gate`
 - [ ] Sample window includes at least one type‑3 (blob) tx **or** the task blocks with `@human` and a provider capability summary
 - [ ] For blob txs in the sample, extracted fields are sufficient to compute `burn_blob_wei` deterministically (receipt preferred; payload/header fallback allowed per protocol)
+- [ ] Tx/receipt table schemas are asserted (required join keys + fee component fields; fail fast on missing/invalid columns)
 - [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Sample is committed and stable
 - [ ] `make gate` passes

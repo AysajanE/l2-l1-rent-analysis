@@ -70,6 +70,7 @@ This task must depend on T087A so we do not attempt a broader extraction unless 
 - [ ] Raw snapshots are append-only and reproducible
 - [ ] Raw manifest exists and validates via `make gate`
 - [ ] Processed blocks table contains required blob header fields for post‑Dencun blocks (sufficient for base-fee-per-blob-gas fallback computation)
+- [ ] Blocks table schema is asserted (required columns at minimum: `block_number`, `block_hash`, `timestamp_utc`, `base_fee_per_gas_wei`, `gas_used`, and post‑Dencun blob header fields; fail fast on missing/invalid columns)
 - [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Sample is committed and stable (tiny fixed window spanning pre‑ and post‑Dencun)
   - Prefer coverage aligned to the canonical sample window intent (see `data/samples/README.md`), but keep extraction volume tiny; sample may be sparse within the window.

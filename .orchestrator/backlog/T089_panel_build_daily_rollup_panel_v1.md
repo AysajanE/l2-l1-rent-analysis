@@ -22,8 +22,9 @@ disallowed_paths:
   - "data/raw/"
 outputs:
   - "src/etl/panel_build_daily_rollup_panel_v1.py"
-  - "data/processed/panels/daily_rollup_panel_v1.parquet"
-  - "data/processed_manifest/daily_rollup_panel_v1_YYYY-MM-DD.json"
+  - "data/processed/panels/daily_rollup_panel_v1.csv"
+  - "data/processed_manifest/daily_rollup_panel_v1_<YYYY-MM-DD>.json"
+  - "data/processed_manifest/daily_rollup_panel_v1_sample_<YYYY-MM-DD>.json"
   - "data/samples/panels/daily_rollup_panel_v1_sample.csv"
 gates:
   - "make gate"
@@ -54,8 +55,10 @@ at the grain (`date_utc`, `rollup_id`), respecting the protocol missingness rule
 - Build script: `src/etl/panel_build_daily_rollup_panel_v1.py`
   - Deterministic; no network calls.
   - Writes outputs under `data/processed/panels/`.
-- Panel dataset (not committed): `data/processed/panels/daily_rollup_panel_v1.parquet`
-- Processed manifest (tracked): `data/processed_manifest/daily_rollup_panel_v1_<YYYY-MM-DD>.json`
+- Panel dataset (not committed): `data/processed/panels/daily_rollup_panel_v1.csv`
+- Processed manifests (tracked; append-only):
+  - Sample-mode (default name in the reference script): `data/processed_manifest/daily_rollup_panel_v1_sample_<YYYY-MM-DD>.json`
+  - Full-mode (default name in the reference script): `data/processed_manifest/daily_rollup_panel_v1_<YYYY-MM-DD>.json`
   - Must record input manifests + command + output hashes.
 - Golden sample (tracked): `data/samples/panels/daily_rollup_panel_v1_sample.csv`
   - Small fixed window + subset of rollups; sufficient for deterministic tests/figures.
@@ -65,6 +68,7 @@ at the grain (`date_utc`, `rollup_id`), respecting the protocol missingness rule
 
 - [ ] Output conforms to the v1 contract (keys + required fields + units)
 - [ ] Missingness rule is implemented exactly as in `docs/protocol.md`
+- [ ] Output schema is asserted against `contracts/schemas/panel_schema_str_v1.yaml` (fail fast on missing/invalid columns)
 - [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` (append-only; includes input manifests + output hashes)
 - [ ] Golden sample is committed and stable
 - [ ] `make gate` passes

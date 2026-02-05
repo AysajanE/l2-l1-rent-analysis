@@ -1,6 +1,6 @@
 ---
 task_id: T060
-title: "Analysis: generate STR timeseries figure from sample panel"
+title: "Analysis: generate STR time series + empirical tests (sample mode)"
 workstream: W6
 role: Worker
 priority: medium
@@ -8,8 +8,12 @@ dependencies:
   - "T040"
   - "T050"
 allowed_paths:
-  - "src/analysis/plot_str_timeseries_sample.py"
-  - "reports/figures/str_timeseries_sample.svg"
+  - "src/analysis/str_empirical_tests.py"
+  - "reports/figures/str_time_series_sample.svg"
+  - "reports/tables/str_time_series_sample.csv"
+  - "reports/tables/str_empirical_tests_sample.json"
+  - "reports/tables/str_empirical_tests_sample.md"
+  - "reports/tables/str_empirical_tests_sample_run.json"
 disallowed_paths:
   - "docs/protocol.md"
   - "contracts/"
@@ -17,19 +21,25 @@ disallowed_paths:
   - "src/analysis/metrics_str.py"
   - "data/raw/"
 outputs:
-  - "src/analysis/plot_str_timeseries_sample.py"
-  - "reports/figures/str_timeseries_sample.svg"
+  - "src/analysis/str_empirical_tests.py"
+  - "reports/figures/str_time_series_sample.svg"
+  - "reports/tables/str_time_series_sample.csv"
+  - "reports/tables/str_empirical_tests_sample.json"
+  - "reports/tables/str_empirical_tests_sample.md"
+  - "reports/tables/str_empirical_tests_sample_run.json"
 gates:
   - "make gate"
 stop_conditions:
   - "Missing sample inputs"
 ---
 
-# Task T060 — Analysis: generate STR timeseries figure from sample panel
+# Task T060 — Analysis: generate STR time series + empirical tests (sample mode)
 
 ## Context
 
-Create the first “vertical slice” research output artifact: a STR timeseries figure generated from the deterministic sample dataset.
+Create the first “vertical slice” research output artifact set generated from deterministic sample inputs:
+- STR time series (figure + CSV), and
+- basic empirical STR tests (trend + Dencun break + simple elasticity scaffolding).
 
 This is primarily a workflow test:
 - analysis code reads local inputs only (no network),
@@ -38,22 +48,25 @@ This is primarily a workflow test:
 
 ## Inputs
 
-- `data/samples/growthepie/vendor_daily_rollup_panel_sample.csv`
+- `data/samples/panels/daily_rollup_panel_v1_sample.csv` (committed; produced/maintained by W9)
 - `src/analysis/metrics_str.py` (read-only; produced by T040)
 - `reports/validation/vendor_panel_validation.json` (optional; used to gate/annotate)
 
 ## Outputs
 
-- `src/analysis/plot_str_timeseries_sample.py`
+- `src/analysis/str_empirical_tests.py`
   - Deterministic (no randomness; no network).
-  - Prefer stdlib-only output (e.g., write an SVG directly) to avoid adding heavy plotting deps in the first slice.
-- `reports/figures/str_timeseries_sample.svg`
-  - Stable filename.
-  - Should include a simple title and axis labels (date vs STR).
+  - Must support `--sample` mode and write stable sample-tagged artifacts under `reports/`.
+- Generated artifacts (stable names; committed):
+  - `reports/figures/str_time_series_sample.svg`
+  - `reports/tables/str_time_series_sample.csv`
+  - `reports/tables/str_empirical_tests_sample.json`
+  - `reports/tables/str_empirical_tests_sample.md`
+  - `reports/tables/str_empirical_tests_sample_run.json` (traceability: command, versions, hashes)
 
 ## Success Criteria
 
-- [ ] Running the script produces `reports/figures/str_timeseries_sample.svg`
+- [ ] Running the script in sample mode produces the stable artifacts under `reports/figures/` and `reports/tables/`
 - [ ] Output is deterministic for the committed sample
 - [ ] `make gate` passes
 
@@ -61,7 +74,7 @@ This is primarily a workflow test:
 
 - `make gate`
 - Example:
-  - `python src/analysis/plot_str_timeseries_sample.py`
+  - `python src/analysis/str_empirical_tests.py --sample`
 
 ## Status
 

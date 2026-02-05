@@ -79,6 +79,7 @@ This task depends on T081 so the registry can provide a deterministic `l2beat_sl
 - [ ] Raw snapshot is written to a dated folder (append-only)
 - [ ] Raw manifest exists and validates via `make gate`
 - [ ] Normalized daily table is reproducible from the raw snapshot
+- [ ] Normalized table schema is asserted (required columns at minimum: `date_utc`, `rollup_id`, `l2beat_slug`, `total_cost_eth`, `total_cost_usd`; fail fast on missing/invalid columns)
 - [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Golden sample is committed and stable
 - [ ] `data/samples/l2beat/README.md` captures curlable discovery + response schema snapshot (no DevTools dependency)

@@ -67,6 +67,7 @@ For “burn vs issuance” style outputs and related interpretation, we need a d
 
 - [ ] Output conforms to `contracts/schemas/issuance_daily_v1.yaml` (daily UTC grain; `issuance_eth` in ETH; `source` set consistently)
 - [ ] Raw manifest exists and is append-only
+- [ ] Normalized table schema is asserted against `contracts/schemas/issuance_daily_v1.yaml` (fail fast on missing/invalid columns)
 - [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Golden sample is committed and stable
 - [ ] `make gate` passes
