@@ -68,6 +68,7 @@ Outputs should be rebuildable from raw snapshots and should include a committed 
 - Processed manifest (tracked): `data/processed_manifest/onchain_rollup_costs_<YYYY-MM-DD>.json`
 - Golden sample (tracked): `data/samples/l1/rollup_costs_daily_sample.csv`
   - small fixed window + subset of rollups; enough to validate attribution logic deterministically.
+  - Prefer the repo’s canonical sample window + rollup subset (see `data/samples/README.md`) where feasible.
 
 ## Success Criteria
 

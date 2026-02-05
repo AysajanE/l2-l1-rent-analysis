@@ -68,6 +68,7 @@ This task builds a reproducible ETL that:
 - Golden sample (tracked): `data/samples/growthepie/vendor_daily_rollup_panel_sample.csv`
   - Must be tiny (seconds to load).
   - Choose a fixed, documented date range and a small rollup subset.
+  - Prefer the repo’s canonical sample window and rollup subset (see `data/samples/README.md`) unless explicitly blocked.
   - Include the same columns as the processed panel (subset of rows only).
 
 ## Success Criteria

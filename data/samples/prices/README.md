@@ -23,3 +23,7 @@ python src/etl/prices_fetch.py --run-date YYYY-MM-DD
 python scripts/make_raw_manifest.py prices data/raw/prices/YYYY-MM-DD --as-of YYYY-MM-DD -- \
   python src/etl/prices_fetch.py --run-date YYYY-MM-DD
 ```
+
+## Canonical sample window
+
+Golden samples should use the repo’s canonical sample window (see `data/samples/README.md`) so downstream sample-mode joins are aligned.

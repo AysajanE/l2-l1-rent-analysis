@@ -54,6 +54,7 @@ USD series are explicitly secondary in `docs/protocol.md`, but are useful for in
   - Include: `date_utc`, `eth_usd_close` (and other columns only if clearly defined).
 - Processed manifest (tracked): `data/processed_manifest/prices_daily_<YYYY-MM-DD>.json`
 - Golden sample (tracked): `data/samples/prices/prices_daily_sample.csv`
+  - Prefer the repo’s canonical sample window (see `data/samples/README.md`) so sample-mode joins align.
 
 ## Success Criteria
 
@@ -66,7 +67,7 @@ USD series are explicitly secondary in `docs/protocol.md`, but are useful for in
 ## Status
 
 - State: backlog
-- Last updated: 2026-02-04
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 

@@ -69,6 +69,7 @@ This task depends on T081 so the registry can provide a deterministic `l2beat_sl
 - Processed manifest (tracked): `data/processed_manifest/l2beat_costs_daily_<YYYY-MM-DD>.json`
 - Golden sample (tracked): `data/samples/l2beat/l2beat_costs_daily_sample.csv`
   - Small fixed window and a small rollup subset; document the choice in-file or adjacent README.
+  - Prefer the repo’s canonical sample window + rollup subset (see `data/samples/README.md`) unless explicitly blocked.
 - Endpoint discovery + schema snapshot notes (tracked): `data/samples/l2beat/README.md`
   - Must include endpoint(s), request parameters, and a high-level response schema snapshot.
   - Update if L2BEAT changes their API/procedure names so swarm runs remain deterministic.

@@ -62,6 +62,7 @@ This task snapshots Blobscan outputs (append-only), normalizes a daily aggregate
   - If you store `l1_blob_base_fee_gwei`, treat it as presentation-only derived from wei; do not compute regimes from gwei floats.
 - Processed manifest (tracked): `data/processed_manifest/blobscan_daily_<YYYY-MM-DD>.json`
 - Golden sample (tracked): `data/samples/blobscan/blobscan_daily_sample.csv`
+  - Prefer the repo’s canonical sample window (see `data/samples/README.md`) unless explicitly blocked.
 
 ## Success Criteria
 

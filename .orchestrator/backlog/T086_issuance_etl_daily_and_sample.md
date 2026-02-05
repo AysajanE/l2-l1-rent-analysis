@@ -61,6 +61,7 @@ For “burn vs issuance” style outputs and related interpretation, we need a d
   - Must conform to `contracts/schemas/issuance_daily_v1.yaml` (include `date_utc`, `issuance_eth`, `source`, optional `method`).
 - Processed manifest (tracked): `data/processed_manifest/issuance_daily_<YYYY-MM-DD>.json`
 - Golden sample (tracked): `data/samples/issuance/issuance_daily_sample.csv`
+  - Prefer the repo’s canonical sample window (see `data/samples/README.md`) so the enriched panel v2 sample can join deterministically.
 
 ## Success Criteria
 

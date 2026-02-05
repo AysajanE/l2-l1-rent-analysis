@@ -59,6 +59,7 @@ at the grain (`date_utc`, `rollup_id`), respecting the protocol missingness rule
   - Must record input manifests + command + output hashes.
 - Golden sample (tracked): `data/samples/panels/daily_rollup_panel_v1_sample.csv`
   - Small fixed window + subset of rollups; sufficient for deterministic tests/figures.
+  - Prefer the repo’s canonical sample window + rollup subset (see `data/samples/README.md`) unless explicitly blocked.
 
 ## Success Criteria
 
@@ -71,7 +72,7 @@ at the grain (`date_utc`, `rollup_id`), respecting the protocol missingness rule
 ## Status
 
 - State: backlog
-- Last updated: 2026-02-04
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 

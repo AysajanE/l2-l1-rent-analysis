@@ -59,6 +59,7 @@ and any other enrichment explicitly defined in the v2 contract.
 - Enriched panel (not committed): `data/processed/panels/daily_rollup_panel_v2.parquet`
 - Processed manifest (tracked): `data/processed_manifest/daily_rollup_panel_v2_<YYYY-MM-DD>.json`
 - Golden sample (tracked): `data/samples/panels/daily_rollup_panel_v2_sample.csv`
+  - Prefer the repo’s canonical sample window + rollup subset (see `data/samples/README.md`) unless explicitly blocked.
 
 ## Success Criteria
 
@@ -71,7 +72,7 @@ and any other enrichment explicitly defined in the v2 contract.
 ## Status
 
 - State: backlog
-- Last updated: 2026-02-04
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 

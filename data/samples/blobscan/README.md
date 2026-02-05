@@ -35,6 +35,10 @@ Optional helper fields:
 - `blobs_count` (integer)
 - `excess_blob_gas` (integer)
 
+## Canonical sample window
+
+Golden samples should use the repo’s canonical sample window (see `data/samples/README.md`), unless the API/service is unavailable and the task blocks with `@human`.
+
 ## Repro commands (expected once ETL exists)
 
 ```bash

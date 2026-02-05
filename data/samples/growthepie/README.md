@@ -32,6 +32,11 @@ When committing a sample panel CSV for tests, target columns:
 - `profit_eth` (optional)
 - `txcount` (optional)
 
+## Canonical sample window
+
+Use the repo’s canonical sample window for any committed sample CSVs unless explicitly blocked:
+- See `data/samples/README.md` (dates + rollup subset).
+
 ## Repro commands (expected once ETL exists)
 
 ```bash

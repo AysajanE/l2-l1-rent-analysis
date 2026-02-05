@@ -52,3 +52,13 @@ For post‑Dencun blob fee computation, the extraction layer must support:
 The probe script prints a JSON summary showing which fields are present and the derived
 `burn_blob_wei` value.
 
+## Canonical sample window (note)
+
+For committed on-chain samples used by downstream deterministic tests (e.g., fee-component fixtures),
+prefer the repo’s canonical sample window (see `data/samples/README.md`).
+
+Because tx/receipt extraction volume is high, L1 samples may be sparse within the window, but should
+include at least:
+- one pre‑Dencun day,
+- one post‑Dencun day, and
+- one day in April with a type‑3 tx when feasible.

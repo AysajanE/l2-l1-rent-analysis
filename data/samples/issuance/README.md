@@ -39,3 +39,7 @@ python src/etl/issuance_fetch.py --run-date YYYY-MM-DD
 python scripts/make_raw_manifest.py issuance data/raw/issuance/YYYY-MM-DD --as-of YYYY-MM-DD -- \
   python src/etl/issuance_fetch.py --run-date YYYY-MM-DD
 ```
+
+## Canonical sample window
+
+Golden samples should use the repo’s canonical sample window (see `data/samples/README.md`) so the enriched panel v2 sample can join deterministically.

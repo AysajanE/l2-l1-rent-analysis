@@ -95,3 +95,4 @@ For `costs.projectChart`, after parsing `result.data`, the payload includes:
   - endpoint + request parameters (this README),
   - raw snapshot(s) under `data/raw/l2beat/<run-date>/...`,
   - a raw manifest under `data/raw_manifest/l2beat_<run-date>.json`.
+- Golden samples should use the repo’s canonical sample window (see `data/samples/README.md`) and the canonical rollup subset where feasible.

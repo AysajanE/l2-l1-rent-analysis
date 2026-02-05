@@ -72,6 +72,7 @@ It is intentionally scoped to txs+receipts only, with explicit join keys, and de
 - Processed manifest (tracked): `data/processed_manifest/l1_txs_receipts_<YYYY-MM-DD>.json`
 - Golden sample (tracked): `data/samples/l1/l1_txs_receipts_sample.csv`
   - Must include at least one post‑Dencun blob tx row if feasible.
+  - Prefer a sample drawn from the canonical sample window (see `data/samples/README.md`), but keep extraction volume tiny; sample may be sparse within the window.
 
 ## Success Criteria
 
@@ -87,9 +88,8 @@ It is intentionally scoped to txs+receipts only, with explicit join keys, and de
 ## Status
 
 - State: backlog
-- Last updated: 2026-02-04
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 
 - 2026-02-04: Split out from the original monolithic T087 to isolate tx/receipt schema and blob-field availability issues.
-

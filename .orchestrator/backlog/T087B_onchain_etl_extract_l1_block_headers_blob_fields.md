@@ -72,14 +72,14 @@ This task must depend on T087A so we do not attempt a broader extraction unless 
 - [ ] Processed blocks table contains required blob header fields for post‑Dencun blocks (sufficient for base-fee-per-blob-gas fallback computation)
 - [ ] Processed manifest is generated via `python scripts/make_processed_manifest.py ...` and includes input manifests + output hashes
 - [ ] Sample is committed and stable (tiny fixed window spanning pre‑ and post‑Dencun)
+  - Prefer coverage aligned to the canonical sample window intent (see `data/samples/README.md`), but keep extraction volume tiny; sample may be sparse within the window.
 - [ ] `make gate` passes
 
 ## Status
 
 - State: backlog
-- Last updated: 2026-02-04
+- Last updated: 2026-02-05
 
 ## Notes / Decisions
 
 - 2026-02-04: Split out from the original monolithic T087 to reduce risk and isolate blob-header-field issues early.
-
