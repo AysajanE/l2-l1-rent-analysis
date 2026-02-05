@@ -7,6 +7,7 @@ priority: high
 dependencies:
   - "T083"
   - "T084"
+  - "T087B"
   - "T089"
 gates:
   - "make gate"
@@ -46,6 +47,7 @@ This task implements deterministic validation scripts and emits both machine-rea
 - Processed tables produced by:
   - T083 (L2BEAT)
   - T084 (Blobscan)
+  - T087B (L1 blocks table; on-chain blob gas used aggregates)
   - T089 (v1 daily_rollup_panel; includes on-chain rent + growthepie fees)
 
 ## Outputs
@@ -80,3 +82,4 @@ This task implements deterministic validation scripts and emits both machine-rea
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to enforce “anti-dashboard-science” cross-source reconciliation before analysis.
+- 2026-02-05: Added explicit dependency on T087B so Blobscan vs on-chain `blobGasUsed` checks can be run deterministically (block-header aggregates).
