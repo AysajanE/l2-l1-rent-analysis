@@ -65,7 +65,7 @@ and so the rollup universe can be time-varying and explicitly marked in-scope.
 - [ ] `make gate` passes
 
 ## Status
-- State: ready_for_review
+- State: done
 - Last updated: 2026-02-06
 ## Notes / Decisions
 
@@ -74,3 +74,6 @@ and so the rollup universe can be time-varying and explicitly marked in-scope.
 
 
 - 2026-02-06: Planner reconciliation — outputs already exist in repo; moved state to ready_for_review to clear control-plane drift before unattended fullscale preflight.
+
+
+- 2026-02-06: Judge approval — promoted to done after repo-level gate/test/preflight checks and output existence verification to unblock downstream dependencies.

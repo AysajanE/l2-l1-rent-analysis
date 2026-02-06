@@ -75,7 +75,7 @@ Suggested checks (keep small, but useful):
   - `python src/validation/validate_vendor_panel.py --sample`
 
 ## Status
-- State: ready_for_review
+- State: done
 - Last updated: 2026-02-06
 ## Notes / Decisions
 
@@ -83,3 +83,6 @@ Suggested checks (keep small, but useful):
 
 
 - 2026-02-06: Planner reconciliation — outputs already exist in repo; moved state to ready_for_review to clear control-plane drift before unattended fullscale preflight.
+
+
+- 2026-02-06: Judge approval — promoted to done after repo-level gate/test/preflight checks and output existence verification to unblock downstream dependencies.
