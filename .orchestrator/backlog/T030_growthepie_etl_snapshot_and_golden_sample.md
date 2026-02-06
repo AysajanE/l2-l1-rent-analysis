@@ -88,7 +88,7 @@ This task builds a reproducible ETL that:
   - `python scripts/make_raw_manifest.py growthepie data/raw/growthepie/2026-01-22 --as-of 2026-01-22 -- python src/etl/growthepie_fetch.py --run-date 2026-01-22`
 
 ## Status
-- State: active
+- State: blocked
 - Last updated: 2026-02-06
 ## Notes / Decisions
 
@@ -96,3 +96,24 @@ This task builds a reproducible ETL that:
 
 
 - 2026-02-06: Claimed by swarm runner; starting worker (branch: T030_growthepie_etl_snapshot_and_golden_sample).
+
+- 2026-02-06: Worker completed T030-scoped outputs and ETL hardening:
+  - Updated `src/etl/growthepie_fetch.py` to assert schema contract (`contracts/schemas/panel_schema_str_v1.yaml`), enforce protocol row omission (emit only rows with both `l2_fees_eth` and `rent_paid_eth`), and fail fast on missing metric-key series.
+  - Wrote raw snapshot + manifest via:
+    - `python src/etl/growthepie_fetch.py --run-date 2026-02-06 --write-raw-manifest`
+    - Manifest: `data/raw_manifest/growthepie_2026-02-06.json`
+  - Rebuilt processed panel deterministically from snapshot:
+    - `python src/etl/growthepie_fetch.py --from-snapshot data/raw/growthepie/2026-02-06 --end-date 2026-02-06 --out-processed data/processed/growthepie/vendor_daily_rollup_panel.csv`
+  - Refreshed golden sample from the same snapshot and replaced tracked file:
+    - `data/samples/growthepie/vendor_daily_rollup_panel_sample.csv`
+    - Determinism check: rebuilt sample/processed files byte-identical on repeat offline run.
+  - Validation:
+    - `python src/validation/validate_vendor_panel.py --sample` -> exit 0
+    - `make gate` -> fails only on `processed_manifest_consistency` for missing outputs outside T030 allowed paths:
+      - `data/processed/panels/daily_rollup_panel_v1_sample.csv`
+      - `data/processed/onchain/rollup_costs_daily.csv`
+      - `data/processed/onchain/rollup_costs_decomposition_daily.csv`
+  - @human: confirm whether worker may generate those non-T030 outputs (outside `allowed_paths`) or treat this branch-level gate failure as non-blocking for T030 completion.
+
+
+- 2026-02-06: @human Judge blocked: gates_failed, path_ownership_violation. Review log: /Users/aeziz-local/Research/Projects-05-Ethereum Blockchain Economic Analysis/Causal Influence of L2 Scaling Solutions on Ethereum L1 Mainnet Congestion/L1-L2-causal-influence-analysis/wt-T030/data/tmp/swarm_logs/T030_20260206T172429Z_judge_review.txt
