@@ -90,6 +90,11 @@ make preflight-onchain
 
 # BigQuery-based on-chain ETL (requires gcloud+bq auth):
 make preflight-bigquery
+
+# Full-scale unattended swarm readiness (critical module presence + control-plane drift + quality gates):
+make preflight-fullscale
+# or:
+python scripts/preflight.py --profile fullscale --json
 ```
 
 Optional smoke test (BigQuery on-chain rent + decomposition; no `ETH_RPC_URL`):

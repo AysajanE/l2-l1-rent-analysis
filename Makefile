@@ -18,6 +18,11 @@ preflight-onchain:
 preflight-bigquery:
 	python scripts/preflight.py --profile bigquery --bq-smoke
 
+.PHONY: preflight-fullscale
+
+preflight-fullscale:
+	python scripts/preflight.py --profile fullscale --json
+
 .PHONY: test
 
 test:

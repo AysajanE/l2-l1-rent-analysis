@@ -11,6 +11,7 @@ For unattended automation (tmux supervisor loop), see `docs/runbook_swarm_automa
 - For tasks that need credentials/env vars, run the appropriate preflight to fail fast:
   - RPC on-chain: `make preflight-onchain` (requires `ETH_RPC_URL`)
   - BigQuery on-chain: `make preflight-bigquery` (requires `gcloud`/`bq` auth)
+  - Full-scale unattended readiness: `make preflight-fullscale` (checks critical modules, control-plane drift, and quality gates)
   - BigQuery on-chain rent (preferred): `python src/etl/l1_rollup_costs_bigquery.py --as-of YYYY-MM-DD --write-manifest`
 
 ## 1) Planner: create/activate tasks
