@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import datetime as _dt
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -660,7 +661,12 @@ def _git_has_changes(cwd: Path) -> bool:
 
 
 def _git_status_entries(cwd: Path) -> list[dict[str, str]]:
-    cp = _run(["git", "status", "--porcelain=v1"], cwd=cwd, capture=True, check=True)
+    cp = _run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all", "--ignored=matching"],
+        cwd=cwd,
+        capture=True,
+        check=True,
+    )
     entries: list[dict[str, str]] = []
     for line in (cp.stdout or "").splitlines():
         if len(line) < 4:
@@ -675,6 +681,161 @@ def _git_status_entries(cwd: Path) -> list[dict[str, str]]:
             new_path = new_path.strip()
         entries.append({"xy": xy, "path": new_path, "old_path": old_path})
     return entries
+
+
+def _status_entry_signature(entry: dict[str, str]) -> tuple[str, str, str]:
+    return (entry.get("xy", ""), entry.get("path", ""), entry.get("old_path", ""))
+
+
+def _path_matches_prefix(*, path: str, prefixes: Iterable[str]) -> bool:
+    norm = path.replace("\\", "/").strip("/")
+    for prefix_raw in prefixes:
+        prefix = prefix_raw.replace("\\", "/").strip("/")
+        if not prefix:
+            continue
+        if norm == prefix or norm.startswith(prefix + "/"):
+            return True
+    return False
+
+
+def _filesystem_entry_fingerprint(*, repo_root: Path, rel_path: str, skip_prefixes: Iterable[str]) -> str:
+    path = (repo_root / rel_path).resolve()
+    try:
+        if not path.exists() and not path.is_symlink():
+            return "missing"
+
+        if path.is_symlink():
+            st = path.lstat()
+            target = os.readlink(path)
+            return f"symlink:{target}:{st.st_mode}:{st.st_size}:{st.st_mtime_ns}"
+
+        if path.is_file():
+            st = path.stat()
+            return f"file:{st.st_mode}:{st.st_size}:{st.st_mtime_ns}"
+
+        if path.is_dir():
+            digest = hashlib.sha256()
+            for root, dirnames, filenames in os.walk(path, topdown=True, followlinks=False):
+                root_path = Path(root)
+                root_rel = root_path.relative_to(repo_root).as_posix()
+                if _path_matches_prefix(path=root_rel, prefixes=skip_prefixes):
+                    dirnames[:] = []
+                    continue
+
+                kept_dirs: list[str] = []
+                for d in sorted(dirnames):
+                    d_path = root_path / d
+                    d_rel = d_path.relative_to(repo_root).as_posix()
+                    if _path_matches_prefix(path=d_rel, prefixes=skip_prefixes):
+                        continue
+                    kept_dirs.append(d)
+                    try:
+                        st = d_path.lstat()
+                    except FileNotFoundError:
+                        continue
+                    digest.update(f"D:{d_rel}:{st.st_mode}:{st.st_size}:{st.st_mtime_ns}\n".encode("utf-8"))
+                dirnames[:] = kept_dirs
+
+                for f in sorted(filenames):
+                    f_path = root_path / f
+                    f_rel = f_path.relative_to(repo_root).as_posix()
+                    if _path_matches_prefix(path=f_rel, prefixes=skip_prefixes):
+                        continue
+                    try:
+                        st = f_path.lstat()
+                    except FileNotFoundError:
+                        continue
+                    if f_path.is_symlink():
+                        try:
+                            target = os.readlink(f_path)
+                        except OSError:
+                            target = ""
+                        digest.update(
+                            f"L:{f_rel}:{target}:{st.st_mode}:{st.st_size}:{st.st_mtime_ns}\n".encode("utf-8")
+                        )
+                    else:
+                        digest.update(f"F:{f_rel}:{st.st_mode}:{st.st_size}:{st.st_mtime_ns}\n".encode("utf-8"))
+            return f"dir:{digest.hexdigest()}"
+    except OSError as exc:
+        return f"error:{type(exc).__name__}"
+    return "unknown"
+
+
+def _snapshot_untracked_ignored_fingerprints(
+    *,
+    cwd: Path,
+    status_entries: list[dict[str, str]],
+    skip_prefixes: Iterable[str] = (),
+) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for entry in status_entries:
+        xy = entry.get("xy", "")
+        p = entry.get("path", "")
+        if xy not in {"??", "!!"}:
+            continue
+        if not p:
+            continue
+        if _path_matches_prefix(path=p, prefixes=skip_prefixes):
+            continue
+        out[p] = _filesystem_entry_fingerprint(repo_root=cwd, rel_path=p, skip_prefixes=skip_prefixes)
+    return out
+
+
+def _status_delta_entries(
+    *,
+    before: list[dict[str, str]],
+    after: list[dict[str, str]],
+    skip_prefixes: Iterable[str] = (),
+) -> list[dict[str, str]]:
+    before_signatures = {_status_entry_signature(e) for e in before}
+    out: list[dict[str, str]] = []
+    for entry in after:
+        sig = _status_entry_signature(entry)
+        if sig in before_signatures:
+            continue
+        p = entry.get("path", "")
+        old = entry.get("old_path", "")
+        if p and _path_matches_prefix(path=p, prefixes=skip_prefixes):
+            continue
+        if old and _path_matches_prefix(path=old, prefixes=skip_prefixes):
+            continue
+        out.append(entry)
+    return out
+
+
+def _filesystem_mutation_paths(
+    *,
+    before: dict[str, str],
+    after: dict[str, str],
+    skip_prefixes: Iterable[str] = (),
+) -> list[str]:
+    out: list[str] = []
+    for p in sorted(set(before) | set(after)):
+        if _path_matches_prefix(path=p, prefixes=skip_prefixes):
+            continue
+        if before.get(p) != after.get(p):
+            out.append(p)
+    return out
+
+
+def _collect_changed_paths(
+    *,
+    status_before: list[dict[str, str]],
+    status_after: list[dict[str, str]],
+    untracked_ignored_before: dict[str, str],
+    untracked_ignored_after: dict[str, str],
+    skip_prefixes: Iterable[str] = (),
+) -> tuple[list[dict[str, str]], list[str]]:
+    delta_entries = _status_delta_entries(before=status_before, after=status_after, skip_prefixes=skip_prefixes)
+    changed_paths = {e["path"] for e in delta_entries if e.get("path")}
+    changed_paths.update(
+        _filesystem_mutation_paths(
+            before=untracked_ignored_before,
+            after=untracked_ignored_after,
+            skip_prefixes=skip_prefixes,
+        )
+    )
+    return delta_entries, sorted(changed_paths)
 
 
 def _path_is_allowed(
@@ -1334,6 +1495,14 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     logs_dir = repo / "data" / "tmp" / "swarm_logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     worker_last_msg = logs_dir / f"{task.task_id}_{_utc_timestamp_compact()}_worker_last_message.txt"
+    runtime_mutation_skip_prefixes = {logs_dir.relative_to(repo).as_posix()}
+
+    status_before_worker = _git_status_entries(repo)
+    untracked_ignored_before = _snapshot_untracked_ignored_fingerprints(
+        cwd=repo,
+        status_entries=status_before_worker,
+        skip_prefixes=runtime_mutation_skip_prefixes,
+    )
 
     worker_prompt = "\n".join(
         [
@@ -1365,7 +1534,7 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     )
     worker_timeout = int(args.max_worker_seconds) if args.max_worker_seconds else None
     try:
-        _run(worker_cmd, cwd=repo, check=False, timeout_seconds=worker_timeout)
+        worker_cp = _run(worker_cmd, cwd=repo, check=False, timeout_seconds=worker_timeout)
     except subprocess.TimeoutExpired:
         timeout_note = (
             f"Worker timed out after {worker_timeout}s; leaving task active. "
@@ -1379,6 +1548,32 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         print(json.dumps({"task_id": task.task_id, "state": "active", "error": "worker_timeout"}, indent=2))
         return 1
 
+    if worker_cp.returncode != 0:
+        reason = f"worker_command_failed_rc={worker_cp.returncode}"
+        note = f"@human Judge blocked: {reason}. Last message: {worker_last_msg.as_posix()}"
+        if args.repair_context:
+            note = f"{note} Repair context: {args.repair_context}"
+        _update_task_status_and_notes(task_path=task_file, new_state="blocked", note_line=note)
+        if _git_has_changes(repo):
+            _run(["git", "add", "-A"], cwd=repo)
+            _run(["git", "commit", "-m", f"{task.task_id}: blocked ({reason})"], cwd=repo, check=False)
+            _run(["git", "push", "-u", args.remote, _git_current_branch(repo)], cwd=repo, check=False)
+        print(
+            json.dumps(
+                {
+                    "task_id": task.task_id,
+                    "state": "blocked",
+                    "error": "worker_command_failed",
+                    "reason": reason,
+                    "worker_returncode": worker_cp.returncode,
+                    "worker_last_message": worker_last_msg.as_posix(),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 1
+
     # Judge: run declared gates (deterministic) + enforce path ownership
     gate_ok = True
     gate_outputs: list[dict[str, Any]] = []
@@ -1390,8 +1585,19 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         if cp.returncode != 0:
             gate_ok = False
 
-    status_entries = _git_status_entries(repo)
-    changed = sorted({e["path"] for e in status_entries if e.get("path")})
+    status_after_worker = _git_status_entries(repo)
+    untracked_ignored_after = _snapshot_untracked_ignored_fingerprints(
+        cwd=repo,
+        status_entries=status_after_worker,
+        skip_prefixes=runtime_mutation_skip_prefixes,
+    )
+    status_entries, changed = _collect_changed_paths(
+        status_before=status_before_worker,
+        status_after=status_after_worker,
+        untracked_ignored_before=untracked_ignored_before,
+        untracked_ignored_after=untracked_ignored_after,
+        skip_prefixes=runtime_mutation_skip_prefixes,
+    )
     task_rel = task_file.relative_to(repo).as_posix()
     task_paths = {task_rel}
     ownership_ok = True
