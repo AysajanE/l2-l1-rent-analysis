@@ -59,10 +59,11 @@ This task focuses on **deterministic metric construction** using only the commit
 - [ ] `make gate` and `make test` pass
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-01-22
-
+- State: ready_for_review
+- Last updated: 2026-02-06
 ## Notes / Decisions
 
 - 2026-01-22: Task created (Planner) to lock STR math in code with tests before analysis.
+
+
+- 2026-02-06: Planner reconciliation — outputs already exist in repo; moved state to ready_for_review to clear control-plane drift before unattended fullscale preflight.

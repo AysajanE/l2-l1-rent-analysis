@@ -85,12 +85,13 @@ This task implements a deterministic counterfactual module using the enriched v2
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: ready_for_review
+- Last updated: 2026-02-06
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to implement the policy counterfactual module in a reproducible way.
 - 2026-02-05: Wired dependency on W0 counterfactual-assumptions lock (T098) to prevent runtime blocking/assumption drift.
 - 2026-02-05: Updated per feedback (2026-02-01): added explicit sample/full interfaces, committed sample artifacts for CI determinism, and required machine-readable metadata (assumptions + panel/manifest hashes).
+
+
+- 2026-02-06: Planner reconciliation — outputs already exist in repo; moved state to ready_for_review to clear control-plane drift before unattended fullscale preflight.

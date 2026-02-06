@@ -81,10 +81,11 @@ This task defines a versioned v2 schema (without breaking v1), updates the data 
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: ready_for_review
+- Last updated: 2026-02-06
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to prevent schema drift before scaling ETL + analysis.
+
+
+- 2026-02-06: Planner reconciliation — outputs already exist in repo; moved state to ready_for_review to clear control-plane drift before unattended fullscale preflight.

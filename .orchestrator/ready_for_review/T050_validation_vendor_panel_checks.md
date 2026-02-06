@@ -75,8 +75,11 @@ Suggested checks (keep small, but useful):
   - `python src/validation/validate_vendor_panel.py --sample`
 
 ## Status
-- State: backlog
-- Last updated: 2026-02-05
+- State: ready_for_review
+- Last updated: 2026-02-06
 ## Notes / Decisions
 
 - 2026-01-22: Task created (Planner) to add deterministic validation before analysis.
+
+
+- 2026-02-06: Planner reconciliation — outputs already exist in repo; moved state to ready_for_review to clear control-plane drift before unattended fullscale preflight.

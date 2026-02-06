@@ -77,10 +77,11 @@ This is primarily a workflow test:
   - `python src/analysis/str_empirical_tests.py --sample`
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-01-22
-
+- State: ready_for_review
+- Last updated: 2026-02-06
 ## Notes / Decisions
 
 - 2026-01-22: Task created (Planner) to produce the first reproducible figure artifact.
+
+
+- 2026-02-06: Planner reconciliation — outputs already exist in repo; moved state to ready_for_review to clear control-plane drift before unattended fullscale preflight.
