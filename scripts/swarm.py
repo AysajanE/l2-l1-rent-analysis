@@ -397,8 +397,12 @@ def ready_backlog_tasks(*, done_ids: set[str], claimed_ids: set[str]) -> list[Ta
 def _compute_workstream_locks(*, repo: Path, claimed_ids: set[str]) -> tuple[set[str], set[str]]:
     """Return (locked_workstreams, parallel_only_workstreams).
 
-    - If any claimed task in a workstream is not parallel_ok, the workstream is locked.
-    - If only parallel_ok tasks are claimed for a workstream, the workstream is parallel-only.
+    Only actively running tasks should lock scheduler capacity for a workstream.
+    Claimed-but-non-active tasks (e.g., stale backlog branches, blocked tasks, merged-but-kept
+    local branches) must not stall unattended scheduling.
+
+    - If any active claimed task in a workstream is not parallel_ok, the workstream is locked.
+    - If only active parallel_ok tasks are claimed for a workstream, the workstream is parallel-only.
     """
     locked: set[str] = set()
     parallel_only: set[str] = set()
@@ -409,6 +413,8 @@ def _compute_workstream_locks(*, repo: Path, claimed_ids: set[str]) -> tuple[set
         try:
             t = load_task(tf)
         except Exception:
+            continue
+        if t.state != "active":
             continue
         if t.parallel_ok:
             parallel_only.add(t.workstream)

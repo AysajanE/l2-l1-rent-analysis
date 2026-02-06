@@ -151,6 +151,45 @@ class SwarmRuntimeGuardsTest(unittest.TestCase):
         self.assertEqual(len(blocking), 1)
         self.assertEqual(blocking[0]["reason"], "critical_quality_gate")
 
+    def test_compute_workstream_locks_ignores_non_active_claimed_tasks(self) -> None:
+        repo = Path("/tmp/repo")
+
+        def _task(task_id: str, workstream: str, state: str, parallel_ok: bool) -> swarm.Task:
+            return swarm.Task(
+                path=Path(f".orchestrator/backlog/{task_id}.md"),
+                task_id=task_id,
+                title=task_id,
+                workstream=workstream,
+                role="Worker",
+                priority="medium",
+                dependencies=[],
+                parallel_ok=parallel_ok,
+                allowed_paths=[],
+                disallowed_paths=[],
+                outputs=[],
+                gates=[],
+                stop_conditions=[],
+                required_env=[],
+                state=state,
+                last_updated=None,
+            )
+
+        tasks_by_id = {
+            "T900": _task("T900", "W1", "backlog", parallel_ok=False),
+            "T901": _task("T901", "W1", "blocked", parallel_ok=False),
+            "T902": _task("T902", "W2", "active", parallel_ok=False),
+            "T903": _task("T903", "W3", "active", parallel_ok=True),
+        }
+
+        with (
+            mock.patch.object(swarm, "_find_task_file_anywhere", side_effect=lambda tid, _repo: tasks_by_id[tid].path),
+            mock.patch.object(swarm, "load_task", side_effect=lambda path: tasks_by_id[path.stem]),
+        ):
+            locked, parallel_only = swarm._compute_workstream_locks(repo=repo, claimed_ids=set(tasks_by_id.keys()))
+
+        self.assertEqual(locked, {"W2"})
+        self.assertEqual(parallel_only, {"W3"})
+
     def test_run_task_treats_out_of_scope_quality_gate_failure_as_warning(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             repo = Path(tmpdir)
