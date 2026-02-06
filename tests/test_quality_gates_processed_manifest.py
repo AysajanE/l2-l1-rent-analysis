@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
+from unittest import mock
 
 from scripts import quality_gates
 
@@ -132,6 +133,82 @@ class ProcessedManifestGateTest(unittest.TestCase):
                 "data/processed_manifest/example_2026-02-06.json:outputs[0]:missing_output_file:data/processed/missing.csv",
                 failures,
             )
+
+    def test_gate_processed_manifest_consistency_skips_unchanged_volatile_missing_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = _base_manifest(
+                output_path="data/processed/missing.csv",
+                output_bytes=1,
+                output_sha256="0" * 64,
+            )
+            self._write_manifest(root, manifest)
+
+            with (
+                _cwd(root),
+                mock.patch.object(quality_gates, "_resolve_base_ref", return_value="origin/main"),
+                mock.patch.object(quality_gates, "_git_changed_paths_against_base", return_value=(["src/etl/example.py"], None)),
+            ):
+                result = quality_gates.gate_processed_manifest_consistency()
+
+            self.assertTrue(result.ok, msg=result.details)
+            self.assertEqual(result.details["checked_outputs"], 0)
+            self.assertEqual(result.details["skipped_volatile_outputs"], 1)
+            self.assertEqual(result.details["failures"], [])
+
+    def test_gate_processed_manifest_consistency_blocks_changed_volatile_missing_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = _base_manifest(
+                output_path="data/processed/missing.csv",
+                output_bytes=1,
+                output_sha256="0" * 64,
+            )
+            self._write_manifest(root, manifest)
+
+            with (
+                _cwd(root),
+                mock.patch.object(quality_gates, "_resolve_base_ref", return_value="origin/main"),
+                mock.patch.object(
+                    quality_gates,
+                    "_git_changed_paths_against_base",
+                    return_value=(["data/processed_manifest/example_2026-02-06.json"], None),
+                ),
+            ):
+                result = quality_gates.gate_processed_manifest_consistency()
+
+            self.assertFalse(result.ok)
+            self.assertIn(
+                "data/processed_manifest/example_2026-02-06.json:outputs[0]:missing_output_file:data/processed/missing.csv",
+                result.details["failures"],
+            )
+
+    def test_gate_processed_manifest_consistency_skips_unchanged_volatile_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            out_path = root / "data" / "processed" / "mismatch.csv"
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            payload_bytes = b"a,b\n1,2\n"
+            out_path.write_bytes(payload_bytes)
+
+            manifest = _base_manifest(
+                output_path="data/processed/mismatch.csv",
+                output_bytes=len(payload_bytes) + 100,
+                output_sha256="0" * 64,
+            )
+            self._write_manifest(root, manifest)
+
+            with (
+                _cwd(root),
+                mock.patch.object(quality_gates, "_resolve_base_ref", return_value="origin/main"),
+                mock.patch.object(quality_gates, "_git_changed_paths_against_base", return_value=([], None)),
+            ):
+                result = quality_gates.gate_processed_manifest_consistency()
+
+            self.assertTrue(result.ok, msg=result.details)
+            self.assertEqual(result.details["checked_outputs"], 0)
+            self.assertEqual(result.details["skipped_volatile_outputs"], 1)
+            self.assertEqual(result.details["failures"], [])
 
     def test_gate_processed_manifest_consistency_sha_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

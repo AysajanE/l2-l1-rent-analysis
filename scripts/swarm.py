@@ -51,6 +51,7 @@ QUALITY_GATES_ALWAYS_BLOCK = {
     "contract_change_discipline",
     "registry_change_discipline",
 }
+RUNTIME_IGNORED_ROOTS = ("data/raw/", "data/processed/")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -711,6 +712,45 @@ def _path_matches_prefix(*, path: str, prefixes: Iterable[str]) -> bool:
     return False
 
 
+def _expand_ignored_status_path(*, repo_root: Path, rel_path: str) -> list[str]:
+    """Expand coarse ignored roots (`data/raw/`, `data/processed/`) to child paths.
+
+    `git status --ignored=matching` reports ignored directory roots, which can cause
+    broad ownership violations (`data/raw/`) even when a task wrote only one allowed
+    source subtree. Expanding to one-level children keeps checks strict but scoped.
+    """
+    norm = rel_path.replace("\\", "/").strip()
+    if not norm:
+        return []
+
+    root_match = any(
+        norm == root.rstrip("/") or norm == root
+        for root in RUNTIME_IGNORED_ROOTS
+    )
+    if not root_match:
+        return [norm]
+
+    root_path = (repo_root / norm).resolve()
+    try:
+        if root_path.is_dir():
+            children: list[str] = []
+            repo_root_resolved = repo_root.resolve()
+            for child in sorted(root_path.iterdir(), key=lambda p: p.name):
+                try:
+                    rel = child.resolve().relative_to(repo_root_resolved).as_posix()
+                except ValueError:
+                    continue
+                if child.is_dir():
+                    rel = rel.rstrip("/") + "/"
+                children.append(rel)
+            if children:
+                return children
+    except Exception:
+        pass
+
+    return [norm]
+
+
 def _is_ephemeral_runtime_path(path: str) -> bool:
     norm = path.replace("\\", "/").strip("/")
     parts = [p for p in norm.split("/") if p]
@@ -726,6 +766,52 @@ def _python_runtime_env() -> dict[str, str]:
     # Prevent transient `__pycache__` / `.pyc` writes from polluting ownership checks.
     env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
     return env
+
+
+def _runtime_side_effect_prefixes_from_allowed_paths(allowed_paths: list[str]) -> set[str]:
+    prefixes: set[str] = set()
+    for raw in allowed_paths:
+        norm = raw.replace("\\", "/").strip()
+        if not norm:
+            continue
+        if norm.startswith("data/raw/") or norm.startswith("data/processed/"):
+            prefixes.add(norm.rstrip("/") + "/")
+            continue
+        if norm.startswith("data/raw_manifest/"):
+            tail = Path(norm).name
+            if tail.endswith("_"):
+                source_key = tail[:-1].strip()
+                if source_key:
+                    prefixes.add(f"data/raw/{source_key}/")
+    return prefixes
+
+
+def _is_allowed_runtime_side_effect(*, path: str, runtime_prefixes: Iterable[str]) -> bool:
+    norm = path.replace("\\", "/").strip("/")
+    if not (
+        norm == "data/raw"
+        or norm.startswith("data/raw/")
+        or norm == "data/processed"
+        or norm.startswith("data/processed/")
+    ):
+        return False
+
+    # `git status --ignored=matching` can report coarse roots (`data/raw/`,
+    # `data/processed/`) on first creation. Allow these only when there is at
+    # least one scoped runtime prefix under the same root.
+    if norm in {"data/raw", "data/processed"}:
+        return any(
+            pfx.replace("\\", "/").strip("/").startswith(norm + "/")
+            for pfx in runtime_prefixes
+        )
+
+    for prefix in runtime_prefixes:
+        pfx = prefix.replace("\\", "/").strip("/")
+        if not pfx:
+            continue
+        if norm == pfx or norm.startswith(pfx + "/"):
+            return True
+    return False
 
 
 def _extract_candidate_paths(text: str) -> list[str]:
@@ -782,6 +868,7 @@ def _classify_quality_gate_failures(
     """
     blocking: list[dict[str, object]] = []
     warnings: list[dict[str, object]] = []
+    runtime_prefixes = _runtime_side_effect_prefixes_from_allowed_paths(allowed_paths)
 
     for item in failures:
         gate_name = str(item.get("gate") or "")
@@ -826,6 +913,8 @@ def _classify_quality_gate_failures(
                     disallowed_paths=disallowed_paths,
                     task_file_paths=task_file_paths,
                 )
+                if not ok and _is_allowed_runtime_side_effect(path=p, runtime_prefixes=runtime_prefixes):
+                    ok = True
                 if ok:
                     any_in_scope = True
                     break
@@ -864,7 +953,8 @@ def _classify_quality_gate_failures(
 
 
 def _filesystem_entry_fingerprint(*, repo_root: Path, rel_path: str, skip_prefixes: Iterable[str]) -> str:
-    path = (repo_root / rel_path).resolve()
+    repo_root_resolved = repo_root.resolve()
+    path = (repo_root_resolved / rel_path).resolve()
     try:
         if not path.exists() and not path.is_symlink():
             return "missing"
@@ -882,7 +972,7 @@ def _filesystem_entry_fingerprint(*, repo_root: Path, rel_path: str, skip_prefix
             digest = hashlib.sha256()
             for root, dirnames, filenames in os.walk(path, topdown=True, followlinks=False):
                 root_path = Path(root)
-                root_rel = root_path.relative_to(repo_root).as_posix()
+                root_rel = root_path.relative_to(repo_root_resolved).as_posix()
                 if _path_matches_prefix(path=root_rel, prefixes=skip_prefixes):
                     dirnames[:] = []
                     continue
@@ -890,7 +980,7 @@ def _filesystem_entry_fingerprint(*, repo_root: Path, rel_path: str, skip_prefix
                 kept_dirs: list[str] = []
                 for d in sorted(dirnames):
                     d_path = root_path / d
-                    d_rel = d_path.relative_to(repo_root).as_posix()
+                    d_rel = d_path.relative_to(repo_root_resolved).as_posix()
                     if _path_matches_prefix(path=d_rel, prefixes=skip_prefixes):
                         continue
                     kept_dirs.append(d)
@@ -903,7 +993,7 @@ def _filesystem_entry_fingerprint(*, repo_root: Path, rel_path: str, skip_prefix
 
                 for f in sorted(filenames):
                     f_path = root_path / f
-                    f_rel = f_path.relative_to(repo_root).as_posix()
+                    f_rel = f_path.relative_to(repo_root_resolved).as_posix()
                     if _path_matches_prefix(path=f_rel, prefixes=skip_prefixes):
                         continue
                     try:
@@ -942,7 +1032,14 @@ def _snapshot_untracked_ignored_fingerprints(
             continue
         if _path_matches_prefix(path=p, prefixes=skip_prefixes):
             continue
-        out[p] = _filesystem_entry_fingerprint(repo_root=cwd, rel_path=p, skip_prefixes=skip_prefixes)
+        for expanded_path in _expand_ignored_status_path(repo_root=cwd, rel_path=p):
+            if _path_matches_prefix(path=expanded_path, prefixes=skip_prefixes):
+                continue
+            out[expanded_path] = _filesystem_entry_fingerprint(
+                repo_root=cwd,
+                rel_path=expanded_path,
+                skip_prefixes=skip_prefixes,
+            )
     return out
 
 
@@ -1666,6 +1763,7 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     runtime_env = _python_runtime_env()
     task_rel = task_file.relative_to(repo).as_posix()
     task_paths = {task_rel}
+    runtime_allowed_prefixes = _runtime_side_effect_prefixes_from_allowed_paths(task.allowed_paths)
 
     status_before_worker = _git_status_entries(repo)
     untracked_ignored_before = _snapshot_untracked_ignored_fingerprints(
@@ -1824,6 +1922,9 @@ def cmd_run_task(args: argparse.Namespace) -> int:
             disallowed_paths=task.disallowed_paths,
             task_file_paths=set(task_paths),
         )
+        if not ok and _is_allowed_runtime_side_effect(path=p, runtime_prefixes=runtime_allowed_prefixes):
+            ok = True
+            reason = None
         if not ok:
             ownership_ok = False
             ownership_failures.append({"path": p, "reason": reason or "unknown"})

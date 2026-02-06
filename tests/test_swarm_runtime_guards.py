@@ -43,6 +43,69 @@ class SwarmRuntimeGuardsTest(unittest.TestCase):
         self.assertIn("--uncommitted", cmd)
         self.assertNotIn("--base", cmd)
 
+    def test_runtime_side_effect_prefixes_infer_raw_from_manifest_allowlist(self) -> None:
+        prefixes = swarm._runtime_side_effect_prefixes_from_allowed_paths(
+            [
+                "data/raw_manifest/bq_ethereum_rollup_costs_",
+                "data/processed/onchain/",
+            ]
+        )
+        self.assertIn("data/raw/bq_ethereum_rollup_costs/", prefixes)
+        self.assertIn("data/processed/onchain/", prefixes)
+
+    def test_is_allowed_runtime_side_effect_respects_inferred_prefixes(self) -> None:
+        prefixes = {
+            "data/raw/bq_ethereum_rollup_costs/",
+            "data/processed/onchain/",
+        }
+        self.assertTrue(
+            swarm._is_allowed_runtime_side_effect(
+                path="data/raw/",
+                runtime_prefixes=prefixes,
+            )
+        )
+        self.assertTrue(
+            swarm._is_allowed_runtime_side_effect(
+                path="data/processed/",
+                runtime_prefixes=prefixes,
+            )
+        )
+        self.assertTrue(
+            swarm._is_allowed_runtime_side_effect(
+                path="data/raw/bq_ethereum_rollup_costs/2026-02-06-r2/",
+                runtime_prefixes=prefixes,
+            )
+        )
+        self.assertTrue(
+            swarm._is_allowed_runtime_side_effect(
+                path="data/processed/onchain/",
+                runtime_prefixes=prefixes,
+            )
+        )
+        self.assertFalse(
+            swarm._is_allowed_runtime_side_effect(
+                path="data/raw/other_source/",
+                runtime_prefixes=prefixes,
+            )
+        )
+
+    def test_snapshot_untracked_ignored_fingerprints_expands_runtime_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            leaf = root / "data" / "raw" / "bq_ethereum_rollup_costs" / "2026-02-06"
+            leaf.mkdir(parents=True, exist_ok=True)
+            (leaf / "query.sql").write_text("select 1;\n", encoding="utf-8")
+
+            entries = [{"xy": "!!", "path": "data/raw/", "old_path": ""}]
+            snap = swarm._snapshot_untracked_ignored_fingerprints(
+                cwd=root,
+                status_entries=entries,
+                skip_prefixes=(),
+            )
+
+            self.assertIn("data/raw/bq_ethereum_rollup_costs/", snap)
+            self.assertNotIn("data/raw/", snap)
+
     def test_classify_quality_gate_failure_out_of_scope_as_warning(self) -> None:
         failures = swarm._parse_quality_gate_failures(
             "[processed_manifest_consistency] ok=False details={'failures': "
@@ -189,6 +252,79 @@ class SwarmRuntimeGuardsTest(unittest.TestCase):
 
         self.assertEqual(status_delta, [])
         self.assertEqual(changed, ["data/tmp/"])
+
+    def test_run_task_allows_scoped_runtime_side_effect_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir)
+            task_file = repo / ".orchestrator" / "active" / "T997_runtime.md"
+            task_file.parent.mkdir(parents=True, exist_ok=True)
+            task_file.write_text("placeholder\n", encoding="utf-8")
+
+            task = swarm.Task(
+                path=task_file,
+                task_id="T997",
+                title="runtime-side-effect-test",
+                workstream="W2",
+                role="worker",
+                priority="high",
+                dependencies=[],
+                parallel_ok=False,
+                allowed_paths=[
+                    "src/etl/l1_rollup_costs_bigquery.py",
+                    "data/raw_manifest/bq_ethereum_rollup_costs_",
+                    "data/processed/onchain/",
+                ],
+                disallowed_paths=[],
+                outputs=[],
+                gates=[],
+                stop_conditions=[],
+                required_env=[],
+                state="active",
+                last_updated=None,
+            )
+
+            args = argparse.Namespace(
+                unattended=False,
+                task_id="T997",
+                remote="origin",
+                base_branch="main",
+                codex_model=None,
+                codex_sandbox="workspace-write",
+                max_worker_seconds=0,
+                max_review_seconds=0,
+                repair_context=None,
+                create_pr=False,
+                auto_merge=False,
+                final_state="ready_for_review",
+            )
+
+            worker_cp = subprocess.CompletedProcess(args=["codex", "exec"], returncode=0, stdout="")
+            review_cp = subprocess.CompletedProcess(args=["codex", "review"], returncode=0, stdout="ok\n")
+
+            update_status_mock = mock.Mock()
+            with (
+                mock.patch.object(swarm, "_repo_root", return_value=repo),
+                mock.patch.object(swarm, "_find_task_file_anywhere", return_value=task_file),
+                mock.patch.object(swarm, "load_task", return_value=task),
+                mock.patch.object(swarm, "_codex_exec_cmd", return_value=["codex", "exec", "task"]),
+                mock.patch.object(swarm, "_git_status_entries", return_value=[]),
+                mock.patch.object(swarm, "_snapshot_untracked_ignored_fingerprints", return_value={}),
+                mock.patch.object(swarm, "_collect_changed_paths", return_value=([], ["data/raw/", "data/raw/bq_ethereum_rollup_costs/", "data/processed/onchain/"])),
+                mock.patch.object(swarm, "_update_task_status_and_notes", update_status_mock),
+                mock.patch.object(swarm, "_git_has_changes", return_value=False),
+                mock.patch.object(swarm, "_git_current_branch", return_value="T997_runtime"),
+                mock.patch.object(swarm, "_run", side_effect=[worker_cp, review_cp]),
+                mock.patch("sys.stdout", new_callable=io.StringIO) as captured_stdout,
+            ):
+                rc = swarm.cmd_run_task(args)
+
+            self.assertEqual(rc, 0)
+            update_status_mock.assert_called_once()
+            self.assertEqual(update_status_mock.call_args.kwargs["new_state"], "ready_for_review")
+
+            payload = json.loads(captured_stdout.getvalue().strip())
+            self.assertTrue(payload["ownership_ok"])
+            self.assertEqual(payload["ownership_failures"], [])
 
     def test_run_task_fails_closed_on_worker_nonzero_returncode(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

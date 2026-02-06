@@ -31,6 +31,7 @@ VALID_TASK_STATES = {"backlog", "active", "blocked", "ready_for_review", "done"}
 VALID_PROJECT_MODES = {"empirical", "modeling", "hybrid"}
 VALID_TASK_ROLES = {"Planner", "Worker", "Judge"}
 VALID_TASK_PRIORITIES = {"low", "medium", "high"}
+VOLATILE_MANIFEST_OUTPUT_PREFIXES = ("data/raw/", "data/processed/")
 
 
 def _read_text(path: Path) -> str:
@@ -864,6 +865,11 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def _is_volatile_manifest_output_path(path: str) -> bool:
+    norm = path.replace("\\", "/").strip()
+    return any(norm.startswith(prefix) for prefix in VOLATILE_MANIFEST_OUTPUT_PREFIXES)
+
+
 def gate_processed_manifest_consistency() -> GateResult:
     """Validate tracked processed manifests and output hash/bytes consistency."""
     failures: list[str] = []
@@ -873,6 +879,22 @@ def gate_processed_manifest_consistency() -> GateResult:
 
     manifest_paths = sorted(manifest_dir.glob("*.json"))
     checked_outputs = 0
+    skipped_volatile_outputs = 0
+    skipped_volatile_manifests: set[str] = set()
+
+    # In a branch run, enforce strict output existence/hash checks for manifests
+    # changed in the current diff. For unchanged historical manifests that point to
+    # ignored runtime paths, skip output checks to avoid stale-local-artifact noise.
+    changed_manifest_paths: set[str] | None = None
+    base_ref = os.environ.get("GATE_BASE_REF") or _resolve_base_ref(["origin/main", "main"])
+    if base_ref is not None:
+        changed_paths, err = _git_changed_paths_against_base(base_ref)
+        if err is None:
+            changed_manifest_paths = {
+                p.replace("\\", "/")
+                for p in changed_paths
+                if p.startswith("data/processed_manifest/") and p.endswith(".json")
+            }
 
     required_top_keys = {
         "schema_version",
@@ -986,10 +1008,24 @@ def gate_processed_manifest_consistency() -> GateResult:
             failures.append(f"{manifest_path}:outputs_not_list")
             continue
 
+        manifest_rel_path = manifest_path.as_posix()
+        manifest_changed_in_diff = (
+            changed_manifest_paths is not None and manifest_rel_path in changed_manifest_paths
+        )
+
         for i, entry in enumerate(outputs):
             prefix = f"{manifest_path}:outputs[{i}]"
             rel_path, expected_sha, expected_bytes = _validate_file_entry(entry, prefix=prefix)
             if rel_path is None:
+                continue
+
+            if (
+                changed_manifest_paths is not None
+                and not manifest_changed_in_diff
+                and _is_volatile_manifest_output_path(rel_path)
+            ):
+                skipped_volatile_outputs += 1
+                skipped_volatile_manifests.add(manifest_rel_path)
                 continue
 
             output_path = Path(rel_path)
@@ -1015,6 +1051,8 @@ def gate_processed_manifest_consistency() -> GateResult:
         details={
             "count": len(manifest_paths),
             "checked_outputs": checked_outputs,
+            "skipped_volatile_outputs": skipped_volatile_outputs,
+            "skipped_volatile_manifests": sorted(skipped_volatile_manifests),
             "failures": failures,
         },
     )
