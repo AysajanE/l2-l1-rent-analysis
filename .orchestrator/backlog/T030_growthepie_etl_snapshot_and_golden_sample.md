@@ -88,10 +88,11 @@ This task builds a reproducible ETL that:
   - `python scripts/make_raw_manifest.py growthepie data/raw/growthepie/2026-01-22 --as-of 2026-01-22 -- python src/etl/growthepie_fetch.py --run-date 2026-01-22`
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-06
 ## Notes / Decisions
 
 - 2026-01-22: Task created (Planner) as first real W1 ETL vertical slice.
+
+
+- 2026-02-06: Claimed by swarm runner; starting worker (branch: T030_growthepie_etl_snapshot_and_golden_sample).
