@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from datetime import datetime
 import re
 import platform
 import sys
@@ -17,6 +18,7 @@ import json
 import subprocess
 import csv
 import os
+import hashlib
 from urllib.parse import urlparse
 
 
@@ -854,6 +856,170 @@ def gate_registry_change_discipline() -> GateResult:
     )
 
 
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def gate_processed_manifest_consistency() -> GateResult:
+    """Validate tracked processed manifests and output hash/bytes consistency."""
+    failures: list[str] = []
+    manifest_dir = Path("data/processed_manifest")
+    if not manifest_dir.exists():
+        return GateResult(ok=False, details={"missing": str(manifest_dir)})
+
+    manifest_paths = sorted(manifest_dir.glob("*.json"))
+    checked_outputs = 0
+
+    required_top_keys = {
+        "schema_version",
+        "name",
+        "as_of_utc_date",
+        "created_at_utc",
+        "inputs",
+        "transform",
+        "outputs",
+        "environment",
+    }
+    required_file_keys = {"path", "sha256", "bytes"}
+    required_transform_keys = {"script_path", "command"}
+    required_environment_keys = {"python_version", "python_implementation", "platform"}
+
+    def _validate_file_entry(entry: object, *, prefix: str) -> tuple[str | None, str | None, int | None]:
+        if not isinstance(entry, dict):
+            failures.append(f"{prefix}:not_object")
+            return None, None, None
+
+        missing_entry_keys = sorted(k for k in required_file_keys if k not in entry)
+        if missing_entry_keys:
+            failures.append(f"{prefix}:missing_keys:{','.join(missing_entry_keys)}")
+            return None, None, None
+
+        rel_path = entry.get("path")
+        if not isinstance(rel_path, str) or rel_path.strip() == "":
+            failures.append(f"{prefix}:invalid_path")
+            rel_path = None
+        elif Path(rel_path).is_absolute():
+            failures.append(f"{prefix}:path_must_be_repo_relative")
+            rel_path = None
+
+        sha = entry.get("sha256")
+        if not isinstance(sha, str) or re.fullmatch(r"[0-9a-f]{64}", sha) is None:
+            failures.append(f"{prefix}:invalid_sha256")
+            sha = None
+
+        bytes_value = entry.get("bytes")
+        if not isinstance(bytes_value, int) or isinstance(bytes_value, bool) or bytes_value < 0:
+            failures.append(f"{prefix}:invalid_bytes")
+            bytes_value = None
+
+        return rel_path, sha, bytes_value
+
+    for manifest_path in manifest_paths:
+        try:
+            data = json.loads(_read_text(manifest_path))
+        except json.JSONDecodeError as exc:
+            failures.append(f"{manifest_path}:invalid_json:{exc.msg}")
+            continue
+
+        if not isinstance(data, dict):
+            failures.append(f"{manifest_path}:top_level_not_object")
+            continue
+
+        missing_keys = sorted(k for k in required_top_keys if k not in data)
+        if missing_keys:
+            failures.append(f"{manifest_path}:missing_keys:{','.join(missing_keys)}")
+
+        if data.get("schema_version") != 1:
+            failures.append(f"{manifest_path}:invalid_schema_version:{data.get('schema_version')!r}")
+
+        as_of = data.get("as_of_utc_date")
+        if not isinstance(as_of, str) or _DATE_RE.fullmatch(as_of) is None:
+            failures.append(f"{manifest_path}:invalid_as_of_utc_date")
+
+        created_at = data.get("created_at_utc")
+        if not isinstance(created_at, str) or created_at.strip() == "":
+            failures.append(f"{manifest_path}:invalid_created_at_utc")
+        else:
+            try:
+                datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            except ValueError:
+                failures.append(f"{manifest_path}:invalid_created_at_utc")
+
+        name = data.get("name")
+        if not isinstance(name, str) or name.strip() == "":
+            failures.append(f"{manifest_path}:invalid_name")
+
+        transform = data.get("transform")
+        if not isinstance(transform, dict):
+            failures.append(f"{manifest_path}:transform_not_object")
+        else:
+            for key in required_transform_keys:
+                value = transform.get(key)
+                if not isinstance(value, str) or value.strip() == "":
+                    failures.append(f"{manifest_path}:transform_invalid_{key}")
+            git_sha = transform.get("git_sha")
+            if git_sha is not None and not isinstance(git_sha, str):
+                failures.append(f"{manifest_path}:transform_invalid_git_sha")
+
+        environment = data.get("environment")
+        if not isinstance(environment, dict):
+            failures.append(f"{manifest_path}:environment_not_object")
+        else:
+            for key in required_environment_keys:
+                value = environment.get(key)
+                if not isinstance(value, str) or value.strip() == "":
+                    failures.append(f"{manifest_path}:environment_invalid_{key}")
+
+        inputs = data.get("inputs")
+        if not isinstance(inputs, list):
+            failures.append(f"{manifest_path}:inputs_not_list")
+        else:
+            for i, entry in enumerate(inputs):
+                _validate_file_entry(entry, prefix=f"{manifest_path}:inputs[{i}]")
+
+        outputs = data.get("outputs")
+        if not isinstance(outputs, list):
+            failures.append(f"{manifest_path}:outputs_not_list")
+            continue
+
+        for i, entry in enumerate(outputs):
+            prefix = f"{manifest_path}:outputs[{i}]"
+            rel_path, expected_sha, expected_bytes = _validate_file_entry(entry, prefix=prefix)
+            if rel_path is None:
+                continue
+
+            output_path = Path(rel_path)
+            if not output_path.exists():
+                failures.append(f"{prefix}:missing_output_file:{rel_path}")
+                continue
+            if not output_path.is_file():
+                failures.append(f"{prefix}:output_not_file:{rel_path}")
+                continue
+
+            checked_outputs += 1
+            actual_bytes = output_path.stat().st_size
+            if expected_bytes is not None and actual_bytes != expected_bytes:
+                failures.append(f"{prefix}:bytes_mismatch:expected={expected_bytes}:actual={actual_bytes}")
+
+            if expected_sha is not None:
+                actual_sha = _sha256_file(output_path)
+                if actual_sha != expected_sha:
+                    failures.append(f"{prefix}:sha256_mismatch:expected={expected_sha}:actual={actual_sha}")
+
+    return GateResult(
+        ok=(len(failures) == 0),
+        details={
+            "count": len(manifest_paths),
+            "checked_outputs": checked_outputs,
+            "failures": failures,
+        },
+    )
+
+
 def gate_raw_manifest_validity() -> GateResult:
     """Validate any tracked raw provenance manifests under data/raw_manifest/.
 
@@ -980,6 +1146,7 @@ def main() -> None:
         "task_dependencies": gate_task_dependencies(),
         "contract_change_discipline": gate_contract_change_discipline(),
         "registry_change_discipline": gate_registry_change_discipline(),
+        "processed_manifest_consistency": gate_processed_manifest_consistency(),
         "raw_manifest_validity": gate_raw_manifest_validity(),
         "sample_panel_integrity": gate_sample_panel_integrity(),
     }
