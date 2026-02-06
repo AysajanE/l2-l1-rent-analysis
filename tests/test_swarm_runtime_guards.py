@@ -26,6 +26,155 @@ swarm = _load_swarm_module()
 
 
 class SwarmRuntimeGuardsTest(unittest.TestCase):
+    def test_path_is_allowed_allows_ephemeral_runtime_paths(self) -> None:
+        ok, reason = swarm._path_is_allowed(
+            path="src/etl/__pycache__/growthepie_fetch.cpython-311.pyc",
+            allowed_paths=["src/etl/"],
+            disallowed_paths=[],
+            task_file_paths=set(),
+        )
+        self.assertTrue(ok)
+        self.assertIsNone(reason)
+
+    def test_codex_review_cmd_uses_uncommitted_without_base(self) -> None:
+        with mock.patch.object(swarm, "_which_or_none", return_value="/usr/bin/codex"):
+            cmd = swarm._codex_review_cmd(prompt="review", unattended=True, workdir=Path("."))
+        self.assertIn("review", cmd)
+        self.assertIn("--uncommitted", cmd)
+        self.assertNotIn("--base", cmd)
+
+    def test_classify_quality_gate_failure_out_of_scope_as_warning(self) -> None:
+        failures = swarm._parse_quality_gate_failures(
+            "[processed_manifest_consistency] ok=False details={'failures': "
+            "['data/processed_manifest/example_2026-02-06.json:outputs[0]:missing_output_file:"
+            "data/processed/panels/daily_rollup_panel_v1_sample.csv']}"
+        )
+        blocking, warnings = swarm._classify_quality_gate_failures(
+            failures=failures,
+            allowed_paths=["src/etl/", "data/raw_manifest/"],
+            disallowed_paths=[],
+            task_file_paths={".orchestrator/backlog/T999_guard.md"},
+        )
+        self.assertEqual(blocking, [])
+        self.assertEqual(len(warnings), 1)
+        self.assertEqual(warnings[0]["gate"], "processed_manifest_consistency")
+
+    def test_classify_quality_gate_failure_in_scope_blocks(self) -> None:
+        failures = swarm._parse_quality_gate_failures(
+            "[raw_manifest_validity] ok=False details={'failures': "
+            "['data/raw_manifest/growthepie_2026-02-06.json:missing_keys:transform']}"
+        )
+        blocking, warnings = swarm._classify_quality_gate_failures(
+            failures=failures,
+            allowed_paths=["src/etl/", "data/raw_manifest/"],
+            disallowed_paths=[],
+            task_file_paths={".orchestrator/backlog/T999_guard.md"},
+        )
+        self.assertEqual(warnings, [])
+        self.assertEqual(len(blocking), 1)
+        self.assertEqual(blocking[0]["reason"], "quality_gate_failure_in_scope")
+
+    def test_classify_quality_gate_failure_critical_gate_always_blocks(self) -> None:
+        failures = swarm._parse_quality_gate_failures(
+            "[protocol_complete] ok=False details={'failures': ['docs/protocol.md:todo_stub']}"
+        )
+        blocking, warnings = swarm._classify_quality_gate_failures(
+            failures=failures,
+            allowed_paths=["src/etl/"],
+            disallowed_paths=[],
+            task_file_paths={".orchestrator/backlog/T999_guard.md"},
+        )
+        self.assertEqual(warnings, [])
+        self.assertEqual(len(blocking), 1)
+        self.assertEqual(blocking[0]["reason"], "critical_quality_gate")
+
+    def test_run_task_treats_out_of_scope_quality_gate_failure_as_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir)
+            task_file = repo / ".orchestrator" / "active" / "T998_scope.md"
+            task_file.parent.mkdir(parents=True, exist_ok=True)
+            task_file.write_text("placeholder\n", encoding="utf-8")
+
+            task = swarm.Task(
+                path=task_file,
+                task_id="T998",
+                title="scope-warning-test",
+                workstream="W0",
+                role="worker",
+                priority="high",
+                dependencies=[],
+                parallel_ok=False,
+                allowed_paths=["src/etl/", "data/raw_manifest/"],
+                disallowed_paths=[],
+                outputs=[],
+                gates=["make gate"],
+                stop_conditions=[],
+                required_env=[],
+                state="active",
+                last_updated=None,
+            )
+
+            args = argparse.Namespace(
+                unattended=False,
+                task_id="T998",
+                remote="origin",
+                base_branch="main",
+                codex_model=None,
+                codex_sandbox="workspace-write",
+                max_worker_seconds=0,
+                max_review_seconds=0,
+                repair_context=None,
+                create_pr=False,
+                auto_merge=False,
+                final_state="ready_for_review",
+            )
+
+            worker_cp = subprocess.CompletedProcess(args=["codex", "exec"], returncode=0, stdout="")
+            review_cp = subprocess.CompletedProcess(args=["codex", "review"], returncode=0, stdout="ok\n")
+            gate_cp = subprocess.CompletedProcess(
+                args=["make gate"],
+                returncode=2,
+                stdout=(
+                    "[processed_manifest_consistency] ok=False details={'count': 1, 'checked_outputs': 0, "
+                    "'failures': ['data/processed_manifest/example_2026-02-06.json:outputs[0]:missing_output_file:"
+                    "data/processed/panels/daily_rollup_panel_v1_sample.csv']}\n"
+                ),
+            )
+
+            update_status_mock = mock.Mock()
+            run_side_effect = [worker_cp, review_cp]
+
+            with (
+                mock.patch.object(swarm, "_repo_root", return_value=repo),
+                mock.patch.object(swarm, "_find_task_file_anywhere", return_value=task_file),
+                mock.patch.object(swarm, "load_task", return_value=task),
+                mock.patch.object(swarm, "_codex_exec_cmd", return_value=["codex", "exec", "task"]),
+                mock.patch.object(swarm, "_git_status_entries", return_value=[]),
+                mock.patch.object(swarm, "_snapshot_untracked_ignored_fingerprints", return_value={}),
+                mock.patch.object(swarm, "_update_task_status_and_notes", update_status_mock),
+                mock.patch.object(swarm, "_git_has_changes", return_value=False),
+                mock.patch.object(swarm, "_git_current_branch", return_value="T998_scope"),
+                mock.patch.object(swarm, "_run", side_effect=run_side_effect),
+                mock.patch("subprocess.run", return_value=gate_cp),
+                mock.patch("sys.stdout", new_callable=io.StringIO) as captured_stdout,
+            ):
+                rc = swarm.cmd_run_task(args)
+
+            self.assertEqual(rc, 0)
+            update_status_mock.assert_called_once()
+            self.assertEqual(update_status_mock.call_args.kwargs["new_state"], "ready_for_review")
+            self.assertIn(
+                "Non-blocking out-of-scope gate warnings",
+                update_status_mock.call_args.kwargs["note_line"],
+            )
+
+            raw = captured_stdout.getvalue().strip()
+            payload = json.loads(raw[raw.find("{") :])
+            self.assertEqual(payload["state"], "ready_for_review")
+            self.assertTrue(payload["gate_ok"])
+            self.assertEqual(payload["gate_blocking_failures"], [])
+            self.assertEqual(len(payload["gate_warning_failures"]), 1)
+
     def test_collect_changed_paths_includes_ignored_filesystem_mutation(self) -> None:
         status_before = [{"xy": "!!", "path": "data/tmp/", "old_path": ""}]
         status_after = [{"xy": "!!", "path": "data/tmp/", "old_path": ""}]

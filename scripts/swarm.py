@@ -22,6 +22,7 @@ Safety:
 from __future__ import annotations
 
 import argparse
+import ast
 import dataclasses
 import datetime as _dt
 import hashlib
@@ -35,9 +36,21 @@ import sys
 import time
 from typing import Any, Iterable
 
+# Keep swarm runtime deterministic and avoid transient bytecode artifacts.
+sys.dont_write_bytecode = True
+
 
 VALID_TASK_STATES = {"backlog", "active", "blocked", "ready_for_review", "done"}
 VALID_TASK_PRIORITIES = {"low", "medium", "high"}
+
+# Gate families that must always block task promotion, regardless of path scope.
+QUALITY_GATES_ALWAYS_BLOCK = {
+    "protocol_complete",
+    "project_contract",
+    "rollup_registry_integrity",
+    "contract_change_discipline",
+    "registry_change_discipline",
+}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -698,6 +711,158 @@ def _path_matches_prefix(*, path: str, prefixes: Iterable[str]) -> bool:
     return False
 
 
+def _is_ephemeral_runtime_path(path: str) -> bool:
+    norm = path.replace("\\", "/").strip("/")
+    parts = [p for p in norm.split("/") if p]
+    if "__pycache__" in parts:
+        return True
+    if norm.endswith(".pyc") or norm.endswith(".pyo"):
+        return True
+    return False
+
+
+def _python_runtime_env() -> dict[str, str]:
+    env = dict(os.environ)
+    # Prevent transient `__pycache__` / `.pyc` writes from polluting ownership checks.
+    env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+    return env
+
+
+def _extract_candidate_paths(text: str) -> list[str]:
+    # Heuristic path extraction from gate failure strings.
+    # Captures tokens like `data/foo/bar.csv` but avoids URLs.
+    candidates: list[str] = []
+    for token in re.findall(r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+/?", text):
+        clean = token.strip().strip("'\"").rstrip(".,;:)]}")
+        if not clean or clean.startswith("http://") or clean.startswith("https://"):
+            continue
+        candidates.append(clean)
+    return sorted(set(candidates))
+
+
+def _parse_quality_gate_failures(output: str) -> list[dict[str, object]]:
+    failures: list[dict[str, object]] = []
+    line_re = re.compile(r"^\[(?P<name>[a-z0-9_]+)\]\s+ok=(?P<ok>True|False)\s+details=(?P<details>.*)$")
+    for line in output.splitlines():
+        m = line_re.match(line.strip())
+        if m is None:
+            continue
+        if m.group("ok") != "False":
+            continue
+        details_raw = m.group("details").strip()
+        details_obj: object = None
+        try:
+            details_obj = ast.literal_eval(details_raw)
+        except Exception:
+            details_obj = None
+        failures.append(
+            {
+                "gate": m.group("name"),
+                "details": details_obj,
+                "details_raw": details_raw,
+            }
+        )
+    return failures
+
+
+def _classify_quality_gate_failures(
+    *,
+    failures: list[dict[str, object]],
+    allowed_paths: list[str],
+    disallowed_paths: list[str],
+    task_file_paths: set[str],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Return (blocking_failures, warning_failures).
+
+    Rule:
+    - Protocol/contract/registry gate families always block.
+    - Other quality-gate failures block only when failure paths overlap task scope.
+    - Out-of-scope failures become non-blocking warnings.
+    - Unscoped/opaque failures fail closed (blocking).
+    """
+    blocking: list[dict[str, object]] = []
+    warnings: list[dict[str, object]] = []
+
+    for item in failures:
+        gate_name = str(item.get("gate") or "")
+        details = item.get("details")
+        details_raw = str(item.get("details_raw") or "")
+
+        if gate_name in QUALITY_GATES_ALWAYS_BLOCK:
+            blocking.append(
+                {
+                    "gate": gate_name,
+                    "reason": "critical_quality_gate",
+                    "summary": details_raw,
+                }
+            )
+            continue
+
+        failure_messages: list[str] = []
+        if isinstance(details, dict):
+            raw_failures = details.get("failures")
+            if isinstance(raw_failures, list):
+                failure_messages = [str(x) for x in raw_failures if isinstance(x, str)]
+
+        if not failure_messages:
+            blocking.append(
+                {
+                    "gate": gate_name,
+                    "reason": "unscoped_quality_gate_failure",
+                    "summary": details_raw,
+                }
+            )
+            continue
+
+        any_in_scope = False
+        path_count = 0
+        for failure_message in failure_messages:
+            paths = _extract_candidate_paths(failure_message)
+            path_count += len(paths)
+            for p in paths:
+                ok, _ = _path_is_allowed(
+                    path=p,
+                    allowed_paths=allowed_paths,
+                    disallowed_paths=disallowed_paths,
+                    task_file_paths=task_file_paths,
+                )
+                if ok:
+                    any_in_scope = True
+                    break
+            if any_in_scope:
+                break
+
+        if any_in_scope:
+            blocking.append(
+                {
+                    "gate": gate_name,
+                    "reason": "quality_gate_failure_in_scope",
+                    "summary": details_raw,
+                }
+            )
+            continue
+
+        if path_count == 0:
+            blocking.append(
+                {
+                    "gate": gate_name,
+                    "reason": "quality_gate_failure_without_paths",
+                    "summary": details_raw,
+                }
+            )
+            continue
+
+        warnings.append(
+            {
+                "gate": gate_name,
+                "reason": "quality_gate_failure_out_of_scope",
+                "summary": details_raw,
+            }
+        )
+
+    return blocking, warnings
+
+
 def _filesystem_entry_fingerprint(*, repo_root: Path, rel_path: str, skip_prefixes: Iterable[str]) -> str:
     path = (repo_root / rel_path).resolve()
     try:
@@ -846,6 +1011,8 @@ def _path_is_allowed(
     task_file_paths: set[str],
 ) -> tuple[bool, str | None]:
     norm = path.replace("\\", "/")
+    if _is_ephemeral_runtime_path(norm):
+        return True, None
 
     # Enforce control-plane governance:
     # - allow only the current task file, and handoff notes
@@ -974,7 +1141,6 @@ def _codex_review_cmd(
     *,
     prompt: str,
     unattended: bool,
-    base_branch: str,
     workdir: Path,
 ) -> list[str]:
     if _which_or_none("codex") is None:
@@ -982,7 +1148,8 @@ def _codex_review_cmd(
     cmd: list[str] = ["codex"]
     if unattended:
         cmd.extend(["-a", "never"])
-    cmd.extend(["review", "--base", base_branch, "--uncommitted", prompt])
+    # Review the current uncommitted task diff only.
+    cmd.extend(["review", "--uncommitted", prompt])
     return cmd
 
 
@@ -1496,6 +1663,9 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     logs_dir.mkdir(parents=True, exist_ok=True)
     worker_last_msg = logs_dir / f"{task.task_id}_{_utc_timestamp_compact()}_worker_last_message.txt"
     runtime_mutation_skip_prefixes = {logs_dir.relative_to(repo).as_posix()}
+    runtime_env = _python_runtime_env()
+    task_rel = task_file.relative_to(repo).as_posix()
+    task_paths = {task_rel}
 
     status_before_worker = _git_status_entries(repo)
     untracked_ignored_before = _snapshot_untracked_ignored_fingerprints(
@@ -1534,7 +1704,7 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     )
     worker_timeout = int(args.max_worker_seconds) if args.max_worker_seconds else None
     try:
-        worker_cp = _run(worker_cmd, cwd=repo, check=False, timeout_seconds=worker_timeout)
+        worker_cp = _run(worker_cmd, cwd=repo, check=False, env=runtime_env, timeout_seconds=worker_timeout)
     except subprocess.TimeoutExpired:
         timeout_note = (
             f"Worker timed out after {worker_timeout}s; leaving task active. "
@@ -1577,13 +1747,50 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     # Judge: run declared gates (deterministic) + enforce path ownership
     gate_ok = True
     gate_outputs: list[dict[str, Any]] = []
+    gate_blocking_failures: list[dict[str, object]] = []
+    gate_warning_failures: list[dict[str, object]] = []
     for gate in task.gates:
         # gates are declared in task files; run as shell for simplicity
         print(f"[judge] running gate: {gate}")
-        cp = subprocess.run(gate, cwd=str(repo), shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        gate_outputs.append({"command": gate, "returncode": cp.returncode, "output": (cp.stdout or "")[-2000:]})
+        cp = subprocess.run(
+            gate,
+            cwd=str(repo),
+            shell=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=runtime_env,
+        )
+        classification = "pass"
         if cp.returncode != 0:
-            gate_ok = False
+            classification = "blocking"
+            gate_failed = {"gate": gate, "reason": "gate_command_failed", "summary": f"rc={cp.returncode}"}
+            quality_failures = _parse_quality_gate_failures(cp.stdout or "")
+            if quality_failures:
+                blocking, warnings = _classify_quality_gate_failures(
+                    failures=quality_failures,
+                    allowed_paths=task.allowed_paths,
+                    disallowed_paths=task.disallowed_paths,
+                    task_file_paths=task_paths,
+                )
+                gate_blocking_failures.extend(blocking)
+                gate_warning_failures.extend(warnings)
+                if not blocking and warnings:
+                    classification = "warning"
+                else:
+                    gate_blocking_failures.append(gate_failed)
+            else:
+                gate_blocking_failures.append(gate_failed)
+            gate_ok = gate_ok and classification != "blocking"
+
+        gate_outputs.append(
+            {
+                "command": gate,
+                "returncode": cp.returncode,
+                "classification": classification,
+                "output": (cp.stdout or "")[-2000:],
+            }
+        )
 
     status_after_worker = _git_status_entries(repo)
     untracked_ignored_after = _snapshot_untracked_ignored_fingerprints(
@@ -1598,8 +1805,6 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         untracked_ignored_after=untracked_ignored_after,
         skip_prefixes=runtime_mutation_skip_prefixes,
     )
-    task_rel = task_file.relative_to(repo).as_posix()
-    task_paths = {task_rel}
     ownership_ok = True
     ownership_failures: list[dict[str, str]] = []
     for entry in status_entries:
@@ -1637,7 +1842,6 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         review_cmd = _codex_review_cmd(
             prompt=review_prompt,
             unattended=args.unattended,
-            base_branch=args.base_branch,
             workdir=repo,
         )
         try:
@@ -1646,6 +1850,7 @@ def cmd_run_task(args: argparse.Namespace) -> int:
                 cwd=repo,
                 capture=True,
                 check=False,
+                env=runtime_env,
                 timeout_seconds=int(args.max_review_seconds) if args.max_review_seconds else None,
             )
         except subprocess.TimeoutExpired:
@@ -1654,10 +1859,17 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     except Exception:
         pass
 
+    gate_warning_names = sorted({str(x.get("gate")) for x in gate_warning_failures if x.get("gate")})
+
     # Decide new state
     if gate_ok and ownership_ok:
         new_state = args.final_state
         note = f"Judge: gates ok; ownership ok. Review log: {review_path.as_posix()}"
+        if gate_warning_names:
+            note = (
+                f"{note} Non-blocking out-of-scope gate warnings: "
+                f"{', '.join(gate_warning_names)}."
+            )
     else:
         new_state = "blocked"
         why: list[str] = []
@@ -1666,6 +1878,8 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         if not ownership_ok:
             why.append("path_ownership_violation")
         note = f"@human Judge blocked: {', '.join(why)}. Review log: {review_path.as_posix()}"
+        if gate_warning_names:
+            note = f"{note} Non-blocking out-of-scope gate warnings also present: {', '.join(gate_warning_names)}."
     if args.repair_context:
         note = f"{note} Repair context: {args.repair_context}"
 
@@ -1681,13 +1895,26 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     # PR (optional)
     if args.create_pr:
         pr_title = f"{task.task_id}: {task.title}"
+        gate_lines = [
+            f"- `{g['command']}` (rc={g['returncode']}, class={g.get('classification', 'unknown')})"
+            for g in gate_outputs
+        ]
+        warning_lines = [
+            f"- `{str(w.get('gate') or 'unknown')}` ({str(w.get('reason') or 'warning')})"
+            for w in gate_warning_failures
+        ]
         pr_body = "\n".join(
             [
                 f"Task: `{task_file.as_posix()}`",
                 f"State: `{new_state}`",
                 "",
                 "Gates run:",
-                *(f"- `{g['command']}` (rc={g['returncode']})" for g in gate_outputs),
+                *gate_lines,
+                *(
+                    ["", "Non-blocking gate warnings (out-of-scope):", *warning_lines]
+                    if warning_lines
+                    else []
+                ),
                 "",
                 "Notes:",
                 "- This PR was generated by the swarm supervisor (unattended).",
@@ -1705,6 +1932,8 @@ def cmd_run_task(args: argparse.Namespace) -> int:
                 "state": new_state,
                 "branch": _git_current_branch(repo),
                 "gate_ok": gate_ok,
+                "gate_blocking_failures": gate_blocking_failures,
+                "gate_warning_failures": gate_warning_failures,
                 "ownership_ok": ownership_ok,
                 "ownership_failures": ownership_failures,
                 "review_log": str(review_path),
