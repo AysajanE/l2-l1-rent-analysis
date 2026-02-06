@@ -54,6 +54,7 @@ class Task:
     outputs: list[str]
     gates: list[str]
     stop_conditions: list[str]
+    required_env: list[str]
     state: str | None
     last_updated: str | None
 
@@ -220,6 +221,7 @@ def load_task(path: Path) -> Task:
     outputs = _coerce_list(fm.get("outputs"))
     gates = _coerce_list(fm.get("gates"))
     stop_conditions = _coerce_list(fm.get("stop_conditions"))
+    required_env = _coerce_list(fm.get("required_env"))
 
     state = _parse_task_state(text)
     last_updated = _parse_task_last_updated(text)
@@ -238,6 +240,7 @@ def load_task(path: Path) -> Task:
         outputs=outputs,
         gates=gates,
         stop_conditions=stop_conditions,
+        required_env=required_env,
         state=state,
         last_updated=last_updated,
     )
@@ -367,6 +370,10 @@ def ready_backlog_tasks(*, done_ids: set[str], claimed_ids: set[str]) -> list[Ta
     for t in tasks:
         if t.task_id in claimed_ids:
             continue
+        if t.required_env:
+            missing = [k for k in t.required_env if not (os.environ.get(k) or "").strip()]
+            if missing:
+                continue
         if all(dep in done_ids for dep in t.dependencies):
             ready.append(t)
     return ready

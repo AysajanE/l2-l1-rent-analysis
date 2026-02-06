@@ -950,7 +950,7 @@ def gate_sample_panel_integrity() -> GateResult:
         for row in reader:
             rows.append(row)
 
-    # Non-negativity (where parseable).
+    # Non-negativity for fee/rent (profit may be negative: rent > fees).
     for i, row in enumerate(rows[:2000]):  # safety cap for gates
         for col in ["l2_fees_eth", "rent_paid_eth", "profit_eth"]:
             if col not in row or row[col] in ("", None):
@@ -960,7 +960,7 @@ def gate_sample_panel_integrity() -> GateResult:
             except ValueError:
                 failures.append(f"row{i}:invalid_number:{col}")
                 continue
-            if v < 0:
+            if col in {"l2_fees_eth", "rent_paid_eth"} and v < 0:
                 failures.append(f"row{i}:negative:{col}")
 
     return GateResult(ok=(len(failures) == 0), details={"sample": str(sample), "failures": failures})

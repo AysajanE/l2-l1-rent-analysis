@@ -13,6 +13,11 @@ preflight:
 preflight-onchain:
 	python scripts/preflight.py --profile onchain
 
+.PHONY: preflight-bigquery
+
+preflight-bigquery:
+	python scripts/preflight.py --profile bigquery --bq-smoke
+
 .PHONY: test
 
 test:

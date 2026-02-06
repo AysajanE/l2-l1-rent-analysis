@@ -12,6 +12,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.etl.offchain.files import write_text_append_only  # noqa: E402
+from src.etl.eip4844 import GAS_PER_BLOB, base_fee_per_blob_gas_wei_from_excess_blob_gas  # noqa: E402
 from src.etl.rpc_client import (  # noqa: E402
     DEFAULT_RPC_ENV_VAR,
     RpcClient,
@@ -19,11 +20,6 @@ from src.etl.rpc_client import (  # noqa: E402
     hex_quantity_to_int,
     int_to_hex_quantity,
 )
-
-
-GAS_PER_BLOB = 131072  # EIP-4844
-MIN_BASE_FEE_PER_BLOB_GAS = 1  # EIP-4844
-BLOB_BASE_FEE_UPDATE_FRACTION = 3338477  # EIP-4844
 
 
 def _rpc_client(rpc_url: str | None) -> RpcClient:
@@ -77,35 +73,6 @@ def _safe_len(value: Any) -> int | None:
     if isinstance(value, list):
         return len(value)
     return None
-
-
-def _fake_exponential(*, factor: int, numerator: int, denominator: int) -> int:
-    """EIP-4844 fake_exponential (Taylor expansion approximation).
-
-    Approximates: factor * e ** (numerator / denominator)
-    Reference: https://eips.ethereum.org/EIPS/eip-4844
-    """
-    if factor < 0 or numerator < 0 or denominator <= 0:
-        raise ValueError("invalid inputs")
-
-    i = 1
-    output = 0
-    numerator_accum = factor * denominator
-    while numerator_accum > 0:
-        output += numerator_accum
-        numerator_accum = (numerator_accum * numerator) // (denominator * i)
-        i += 1
-    return output // denominator
-
-
-def _base_fee_per_blob_gas_wei_from_excess_blob_gas(excess_blob_gas: int) -> int:
-    if excess_blob_gas < 0:
-        raise ValueError("excess_blob_gas must be >= 0")
-    return _fake_exponential(
-        factor=MIN_BASE_FEE_PER_BLOB_GAS,
-        numerator=excess_blob_gas,
-        denominator=BLOB_BASE_FEE_UPDATE_FRACTION,
-    )
 
 
 def cmd_probe(
@@ -199,7 +166,7 @@ def cmd_probe(
     if base_fee_per_blob_gas_wei is None and header_excess_blob_gas is not None:
         try:
             excess = hex_quantity_to_int(header_excess_blob_gas)
-            header_base_fee_per_blob_gas_wei = _base_fee_per_blob_gas_wei_from_excess_blob_gas(excess)
+            header_base_fee_per_blob_gas_wei = base_fee_per_blob_gas_wei_from_excess_blob_gas(excess)
             base_fee_per_blob_gas_wei = header_base_fee_per_blob_gas_wei
             base_fee_per_blob_gas_source = "header.excessBlobGas->EIP4844.fake_exponential"
         except Exception:

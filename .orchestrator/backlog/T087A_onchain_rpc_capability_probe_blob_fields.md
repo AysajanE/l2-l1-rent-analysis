@@ -6,6 +6,8 @@ role: Worker
 priority: high
 dependencies:
   - "T096"
+required_env:
+  - "ETH_RPC_URL"
 parallel_ok: false
 allowed_paths:
   - "src/etl/rpc_client.py"
@@ -91,4 +93,3 @@ Downstream tasks (T087B/T087C) must depend on this probe so the swarm fails fast
 ## Notes / Decisions
 
 - 2026-02-04: Split from the original monolithic T087 per task-level feedback; this probe defines a concrete “blob-ready” acceptance test.
-

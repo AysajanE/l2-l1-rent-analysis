@@ -162,8 +162,8 @@ def run_validation(*, input_csv: Path, out_json: Path, out_md: Path) -> int:
         rent_paid = parse_optional_float(row.get("rent_paid_eth"))
         profit = parse_optional_float(row.get("profit_eth"))
 
-        # Non-negativity (when present and parseable).
-        for col, v in [("l2_fees_eth", l2_fees), ("rent_paid_eth", rent_paid), ("profit_eth", profit)]:
+        # Non-negativity for fee/rent (profit may be negative: rent > fees).
+        for col, v in [("l2_fees_eth", l2_fees), ("rent_paid_eth", rent_paid)]:
             if v is None:
                 continue
             if v < 0:

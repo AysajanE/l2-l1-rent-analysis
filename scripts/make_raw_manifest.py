@@ -115,6 +115,8 @@ def main(argv: list[str]) -> None:
     out_dir = _repo_root() / "data/raw_manifest"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = Path(args.out_path) if args.out_path else (out_dir / f"{source}_{as_of.isoformat()}.json")
+    if out_path.exists():
+        raise SystemExit(f"Refusing to overwrite existing manifest: {out_path}")
     out_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"Wrote {out_path}")
 

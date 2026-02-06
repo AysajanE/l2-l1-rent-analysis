@@ -82,10 +82,22 @@ make test
 
 If `make gate` fails, do **not** start the swarm. Fix the gate failures first.
 
-If you will run on-chain tasks, also run:
+If you will run on-chain tasks, also run the appropriate preflight:
 
 ```bash
+# RPC-based on-chain ETL (requires ETH_RPC_URL):
 make preflight-onchain
+
+# BigQuery-based on-chain ETL (requires gcloud+bq auth):
+make preflight-bigquery
+```
+
+Optional smoke test (BigQuery on-chain rent + decomposition; no `ETH_RPC_URL`):
+
+```bash
+python src/etl/l1_rollup_costs_bigquery.py --as-of YYYY-MM-DD \
+  --start-date 2024-04-01 --end-date 2024-04-01 \
+  --raw-dir data/raw/_scratch_bq_rollup_costs/SMOKE_YYYY-MM-DD
 ```
 
 ### 3) Verify required CLIs exist *in this environment*

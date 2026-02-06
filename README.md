@@ -24,6 +24,8 @@ When sources disagree for the same concept, the protocol prioritizes:
 2. growthepie exports (primary for `L2Fees`; secondary vendor `rent_paid/profit` series for triangulation).
 3. L2BEAT costs series (triangulation / sanity check).
 
+On-chain rent computation is supported via **BigQuery public Ethereum tables** (preferred for unattended runs) and an RPC-based fallback path.
+
 Blobscan may be used for blob-market aggregates and cross-checks when available.
 
 ## Repo structure

@@ -8,7 +8,10 @@ For unattended automation (tmux supervisor loop), see `docs/runbook_swarm_automa
 
 - Work in a sandboxed environment (VM/devcontainer/Codespaces) containing only this repo.
 - Ensure `make gate` passes on `main` before starting parallel work.
-- For tasks that need credentials/env vars (e.g., on-chain RPC), run `make preflight-onchain` to fail fast.
+- For tasks that need credentials/env vars, run the appropriate preflight to fail fast:
+  - RPC on-chain: `make preflight-onchain` (requires `ETH_RPC_URL`)
+  - BigQuery on-chain: `make preflight-bigquery` (requires `gcloud`/`bq` auth)
+  - BigQuery on-chain rent (preferred): `python src/etl/l1_rollup_costs_bigquery.py --as-of YYYY-MM-DD --write-manifest`
 
 ## 1) Planner: create/activate tasks
 

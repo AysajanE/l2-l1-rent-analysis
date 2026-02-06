@@ -1,0 +1,178 @@
+{
+  "as_of_utc_date": "2026-02-05",
+  "created_at_utc": "2026-02-05T21:26:59.061853+00:00",
+  "environment": {
+    "platform": "macOS-15.6.1-arm64-arm-64bit-Mach-O",
+    "python_implementation": "CPython",
+    "python_version": "3.13.5"
+  },
+  "inputs": [
+    {
+      "bytes": 800,
+      "path": "contracts/schemas/rollup_costs_daily_v1.yaml",
+      "sha256": "824b4f1cf4c28c807e3fb1f39af8f39d3d60251b47784973cd6b81b013fd2300"
+    },
+    {
+      "bytes": 2294,
+      "path": "contracts/schemas/rollup_costs_decomposition_daily_v1.yaml",
+      "sha256": "6d0a750c6176cbd3589f35edab0ed9abcb75be52d0fd0ab03c0a8e872e70c8e6"
+    },
+    {
+      "bytes": 1881,
+      "path": "data/raw_manifest/bq_ethereum_rollup_costs_2026-02-05.json",
+      "sha256": "f810c6f0bcfd1505186885f4530ae5fad4a5eab96691718dec2f9e1e64272b3b"
+    },
+    {
+      "bytes": 26014,
+      "path": "registry/rollup_registry_v1.csv",
+      "sha256": "0670c8ad4717854e510ef073885c073e617fad5be8bb98637c90f09e143286c6"
+    }
+  ],
+  "meta": {
+    "contracts": {
+      "rollup_costs_daily_v1": {
+        "contract_assertions": {
+          "schema_fields": [
+            "date_utc",
+            "rollup_id",
+            "rent_paid_eth",
+            "rent_paid_wei"
+          ],
+          "schema_required_fields": [
+            "date_utc",
+            "rollup_id",
+            "rent_paid_eth"
+          ]
+        },
+        "required_fields": [
+          "date_utc",
+          "rollup_id",
+          "rent_paid_eth"
+        ],
+        "schema_path": "contracts/schemas/rollup_costs_daily_v1.yaml",
+        "sha256": "824b4f1cf4c28c807e3fb1f39af8f39d3d60251b47784973cd6b81b013fd2300"
+      },
+      "rollup_costs_decomposition_daily_v1": {
+        "contract_assertions": {
+          "schema_fields": [
+            "date_utc",
+            "rollup_id",
+            "rent_paid_eth",
+            "rent_base_fee_burn_eth",
+            "rent_blob_fee_burn_eth",
+            "rent_priority_fee_eth",
+            "rollup_blob_gas_used",
+            "rent_paid_wei",
+            "rent_blob_fee_burn_wei",
+            "rent_base_fee_burn_wei",
+            "rent_priority_fee_wei",
+            "unattributed_rent_eth"
+          ],
+          "schema_required_fields": [
+            "date_utc",
+            "rollup_id",
+            "rent_paid_eth",
+            "rent_base_fee_burn_eth",
+            "rent_blob_fee_burn_eth",
+            "rent_priority_fee_eth",
+            "rollup_blob_gas_used"
+          ]
+        },
+        "required_fields": [
+          "date_utc",
+          "rollup_id",
+          "rent_paid_eth",
+          "rent_base_fee_burn_eth",
+          "rent_blob_fee_burn_eth",
+          "rent_priority_fee_eth",
+          "rollup_blob_gas_used"
+        ],
+        "schema_path": "contracts/schemas/rollup_costs_decomposition_daily_v1.yaml",
+        "sha256": "6d0a750c6176cbd3589f35edab0ed9abcb75be52d0fd0ab03c0a8e872e70c8e6"
+      }
+    },
+    "counts": {
+      "costs": {
+        "missing_required": 0,
+        "rows": 8
+      },
+      "decomposition": {
+        "missing_required": 0,
+        "rows": 8
+      }
+    },
+    "date_range_utc": {
+      "end": "2024-04-01",
+      "start": "2024-04-01"
+    },
+    "notes": [
+      "Attribution uses sender allowlist from registry batcher_addresses_json (from_address match only).",
+      "Blob burn uses receipt_blob_gas_used * receipt_blob_gas_price (wei).",
+      "Row omission encodes missingness: rollup-days appear only when at least one attributed tx exists."
+    ],
+    "probe": {
+      "missing_blob_receipt_fields": 0,
+      "type3_txs": 1300
+    },
+    "raw_snapshot": {
+      "dir": "data/raw/bq_ethereum_rollup_costs/2026-02-05",
+      "sql_paths": {
+        "costs": "data/raw/bq_ethereum_rollup_costs/2026-02-05/rollup_costs_daily.sql",
+        "decomposition": "data/raw/bq_ethereum_rollup_costs/2026-02-05/rollup_costs_decomposition_daily.sql",
+        "sender_meta": "data/raw/bq_ethereum_rollup_costs/2026-02-05/sender_map_meta.json"
+      },
+      "sql_sha256": {
+        "costs": "37cde9c30a4d09e9db41534f3f6a96f0190a76c692ceef28380680506dc80aaf",
+        "decomposition": "4d9f594844ba5d56823700828de0037a28cbded3c96268ba0ff3d39e1833bd49"
+      }
+    },
+    "registry": {
+      "path": "registry/rollup_registry_v1.csv",
+      "sha256": "0670c8ad4717854e510ef073885c073e617fad5be8bb98637c90f09e143286c6",
+      "universe": {
+        "addresses": 53,
+        "in_scope_rollups": [
+          "arbitrum",
+          "base",
+          "blast",
+          "linea",
+          "loopring",
+          "metis",
+          "mode",
+          "optimism",
+          "scroll",
+          "starknet",
+          "taiko",
+          "zksync_era",
+          "zora"
+        ]
+      }
+    },
+    "source": {
+      "blocks_table": "bigquery-public-data.crypto_ethereum.blocks",
+      "location": "US",
+      "project_id": null,
+      "txs_table": "bigquery-public-data.crypto_ethereum.transactions",
+      "type": "bigquery"
+    }
+  },
+  "name": "onchain_rollup_costs",
+  "outputs": [
+    {
+      "bytes": 452,
+      "path": "data/processed/onchain/rollup_costs_daily.csv",
+      "sha256": "a31634b96ff5e2ce8b3963c88dc4c4e2bef82579f6ebad012c13bff0469838e2"
+    },
+    {
+      "bytes": 1373,
+      "path": "data/processed/onchain/rollup_costs_decomposition_daily.csv",
+      "sha256": "8bf35bbe51838f5e8cbfcdb817c5b81cb00ca23a51afedf56a7037057fc6655d"
+    }
+  ],
+  "schema_version": 1,
+  "transform": {
+    "command": "python src/etl/l1_rollup_costs_bigquery.py --as-of 2026-02-05 --start-date 2024-04-01 --end-date 2024-04-01 --write-manifest",
+    "git_sha": "0e3a9913bd2a5ebf236134d3eaf3cf6d9a320ff0",
+    "script_path": "scripts/make_processed_manifest.py"
+  }
+}

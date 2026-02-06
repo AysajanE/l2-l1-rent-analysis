@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "type2_execution_only",
+      "inputs": {
+        "gas_used": 21000,
+        "effective_gas_price_wei": 100,
+        "base_fee_per_gas_wei": 90,
+        "tx_type": 2,
+        "receipt_blob_gas_used": null,
+        "receipt_blob_gas_price_wei": null,
+        "tx_blob_versioned_hashes_count": null,
+        "block_excess_blob_gas": null,
+        "tx_max_fee_per_blob_gas_wei": null
+      },
+      "expected": {
+        "burn_base_wei": 1890000,
+        "tips_wei": 210000,
+        "burn_blob_wei": 0,
+        "blob_gas_used": 0,
+        "base_fee_per_blob_gas_wei": null
+      }
+    },
+    {
+      "name": "type3_receipt_blob_fields",
+      "inputs": {
+        "gas_used": 100000,
+        "effective_gas_price_wei": 50,
+        "base_fee_per_gas_wei": 40,
+        "tx_type": 3,
+        "receipt_blob_gas_used": 131072,
+        "receipt_blob_gas_price_wei": 5,
+        "tx_blob_versioned_hashes_count": null,
+        "block_excess_blob_gas": null,
+        "tx_max_fee_per_blob_gas_wei": 10
+      },
+      "expected": {
+        "burn_base_wei": 4000000,
+        "tips_wei": 1000000,
+        "burn_blob_wei": 655360,
+        "blob_gas_used": 131072,
+        "base_fee_per_blob_gas_wei": 5
+      }
+    },
+    {
+      "name": "type3_header_fallback_excess_6676954_base_fee_7",
+      "inputs": {
+        "gas_used": 50000,
+        "effective_gas_price_wei": 20,
+        "base_fee_per_gas_wei": 10,
+        "tx_type": 3,
+        "receipt_blob_gas_used": null,
+        "receipt_blob_gas_price_wei": null,
+        "tx_blob_versioned_hashes_count": 2,
+        "block_excess_blob_gas": 6676954,
+        "tx_max_fee_per_blob_gas_wei": 100
+      },
+      "expected": {
+        "burn_base_wei": 500000,
+        "tips_wei": 500000,
+        "burn_blob_wei": 1835008,
+        "blob_gas_used": 262144,
+        "base_fee_per_blob_gas_wei": 7
+      }
+    }
+  ],
+  "notes": [
+    "All numeric values are integer wei/blob-gas units; no floats.",
+    "Header fallback case uses excessBlobGas=6676954 which yields base_fee_per_blob_gas_wei=7 under EIP-4844 fake_exponential."
+  ]
+}

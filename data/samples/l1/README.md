@@ -6,8 +6,15 @@ receipts; the swarm must fail fast if required fields are missing.
 
 ## Required environment
 
-- Set an Ethereum mainnet JSON-RPC URL in `ETH_RPC_URL`.
-  - Do not commit secrets.
+- **RPC probe route (this doc):** set an Ethereum mainnet JSON-RPC URL in `ETH_RPC_URL` (do not commit secrets).
+- **BigQuery on-chain route (preferred for unattended runs):** authenticate `gcloud`/`bq` and use `src/etl/l1_rollup_costs_bigquery.py` (no `ETH_RPC_URL`).
+
+BigQuery smoke (verifies blob receipt fields are present in the public dataset for the chosen window):
+
+```bash
+make preflight-bigquery
+python src/etl/l1_rollup_costs_bigquery.py --as-of YYYY-MM-DD --start-date 2024-04-01 --end-date 2024-04-01 --raw-dir data/raw/_scratch_bq_rollup_costs/SMOKE_YYYY-MM-DD
+```
 
 ## Probe (acceptance test)
 

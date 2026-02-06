@@ -7,6 +7,8 @@ priority: high
 dependencies:
   - "T096"
   - "T087A"
+required_env:
+  - "ETH_RPC_URL"
 parallel_ok: false
 allowed_paths:
   - "src/etl/l1_extract_blocks.py"

@@ -1,0 +1,48 @@
+{
+  "as_of_utc_date": "2026-02-05",
+  "command": "python src/etl/l1_rollup_costs_bigquery.py --as-of 2026-02-05 --start-date 2024-04-01 --end-date 2024-04-01 --write-manifest",
+  "environment": {
+    "platform": "macOS-15.6.1-arm64-arm-64bit-Mach-O",
+    "python_implementation": "CPython",
+    "python_version": "3.13.5"
+  },
+  "fetched_at_utc": "2026-02-05T21:26:58.996974+00:00",
+  "files": [
+    {
+      "bytes": 310,
+      "path": "data/raw/bq_ethereum_rollup_costs/2026-02-05/bq_stderr_daily.log",
+      "sha256": "c1d3a2a80545acd7116e6bf73b4ef8272e84b36eb32c7528ab2878416f5064cd"
+    },
+    {
+      "bytes": 310,
+      "path": "data/raw/bq_ethereum_rollup_costs/2026-02-05/bq_stderr_decomposition.log",
+      "sha256": "c1d3a2a80545acd7116e6bf73b4ef8272e84b36eb32c7528ab2878416f5064cd"
+    },
+    {
+      "bytes": 452,
+      "path": "data/raw/bq_ethereum_rollup_costs/2026-02-05/rollup_costs_daily.csv",
+      "sha256": "a31634b96ff5e2ce8b3963c88dc4c4e2bef82579f6ebad012c13bff0469838e2"
+    },
+    {
+      "bytes": 16511,
+      "path": "data/raw/bq_ethereum_rollup_costs/2026-02-05/rollup_costs_daily.sql",
+      "sha256": "f74e7c8bcb65c5a3c0cbb78464803069b1ba7b26c1feaa0e3cf5e5cb7a799c63"
+    },
+    {
+      "bytes": 1373,
+      "path": "data/raw/bq_ethereum_rollup_costs/2026-02-05/rollup_costs_decomposition_daily.csv",
+      "sha256": "8bf35bbe51838f5e8cbfcdb817c5b81cb00ca23a51afedf56a7037057fc6655d"
+    },
+    {
+      "bytes": 17079,
+      "path": "data/raw/bq_ethereum_rollup_costs/2026-02-05/rollup_costs_decomposition_daily.sql",
+      "sha256": "c1270168a43562f48772f40a666b48c5fd00e5a39c3843c2571416086ce0ac17"
+    },
+    {
+      "bytes": 234,
+      "path": "data/raw/bq_ethereum_rollup_costs/2026-02-05/sender_map_meta.json",
+      "sha256": "2a1a7b053b77244e28f496baa8f90f4f804002d9f2007755cdb23fe3ce6d02af"
+    }
+  ],
+  "source": "bq_ethereum_rollup_costs"
+}

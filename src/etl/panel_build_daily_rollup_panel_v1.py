@@ -14,7 +14,9 @@ Outputs (default):
 How to run:
 - Sample build + manifest:
   `python src/etl/panel_build_daily_rollup_panel_v1.py --sample --write-manifest --as-of 2026-02-04`
-- Full build (provide an input candidate panel CSV):
+- Full build (join mode; recommended):
+  `python src/etl/panel_build_daily_rollup_panel_v1.py --fees-csv data/processed/growthepie/vendor_daily_rollup_panel.csv --rent-csv data/processed/onchain/rollup_costs_daily.csv --out data/processed/panels/daily_rollup_panel_v1.csv`
+- Full build (provide a pre-joined candidate panel CSV):
   `python src/etl/panel_build_daily_rollup_panel_v1.py --input data/processed/<source>/candidate.csv --out data/processed/panels/daily_rollup_panel_v1.csv`
 """
 
@@ -264,9 +266,97 @@ def _validate_input_columns(header: list[str]) -> None:
         raise SystemExit(f"Input is missing required columns: {missing}")
 
 
-def build_panel(*, registry: dict[str, RegistryRow], input_csv: Path) -> tuple[list[dict[str, object]], dict[str, int]]:
-    if not input_csv.exists():
-        raise SystemExit(f"input not found: {input_csv}")
+def _load_csv_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    if not path.exists():
+        raise SystemExit(f"input not found: {path}")
+    with path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        if reader.fieldnames is None:
+            raise SystemExit("Input CSV missing header row")
+        rows = [dict(r) for r in reader]
+        return list(reader.fieldnames), rows
+
+
+def _join_fees_and_rent(*, fees_csv: Path, rent_csv: Path) -> tuple[list[str], list[dict[str, str]], dict[str, int]]:
+    fees_header, fees_rows = _load_csv_rows(fees_csv)
+    rent_header, rent_rows = _load_csv_rows(rent_csv)
+
+    required_fees = {"date_utc", "rollup_id", "l2_fees_eth"}
+    required_rent = {"date_utc", "rollup_id", "rent_paid_eth"}
+    missing_fees = sorted(required_fees - set(fees_header))
+    missing_rent = sorted(required_rent - set(rent_header))
+    if missing_fees:
+        raise SystemExit(f"fees_csv missing required columns: {missing_fees} ({fees_csv})")
+    if missing_rent:
+        raise SystemExit(f"rent_csv missing required columns: {missing_rent} ({rent_csv})")
+
+    fees_map: dict[tuple[str, str], dict[str, str]] = {}
+    for i, r in enumerate(fees_rows, start=2):
+        d = (r.get("date_utc") or "").strip()
+        rid = (r.get("rollup_id") or "").strip()
+        if d == "" or rid == "":
+            raise SystemExit(f"fees_csv row {i}: missing date_utc/rollup_id")
+        key = (d, rid)
+        if key in fees_map:
+            raise SystemExit(f"fees_csv row {i}: duplicate (date_utc, rollup_id): {key}")
+        fees_map[key] = {
+            "l2_fees_eth": (r.get("l2_fees_eth") or "").strip(),
+            "profit_eth": (r.get("profit_eth") or "").strip(),
+            "txcount": (r.get("txcount") or "").strip(),
+        }
+
+    rent_map: dict[tuple[str, str], str] = {}
+    for i, r in enumerate(rent_rows, start=2):
+        d = (r.get("date_utc") or "").strip()
+        rid = (r.get("rollup_id") or "").strip()
+        if d == "" or rid == "":
+            raise SystemExit(f"rent_csv row {i}: missing date_utc/rollup_id")
+        key = (d, rid)
+        if key in rent_map:
+            raise SystemExit(f"rent_csv row {i}: duplicate (date_utc, rollup_id): {key}")
+        rent_map[key] = (r.get("rent_paid_eth") or "").strip()
+
+    keys = sorted(set(fees_map.keys()) | set(rent_map.keys()))
+    rows: list[dict[str, str]] = []
+    counts = {
+        "fees_rows": len(fees_map),
+        "rent_rows": len(rent_map),
+        "candidate_rows": len(keys),
+        "candidate_rows_missing_fees": 0,
+        "candidate_rows_missing_rent": 0,
+        "candidate_rows_with_both": 0,
+    }
+    for d, rid in keys:
+        fees = fees_map.get((d, rid))
+        rent = rent_map.get((d, rid))
+        if fees is None:
+            counts["candidate_rows_missing_fees"] += 1
+        if rent is None:
+            counts["candidate_rows_missing_rent"] += 1
+        if fees is not None and rent is not None:
+            counts["candidate_rows_with_both"] += 1
+        rows.append(
+            {
+                "date_utc": d,
+                "rollup_id": rid,
+                "l2_fees_eth": (fees.get("l2_fees_eth") if fees is not None else ""),
+                "rent_paid_eth": (rent or ""),
+                "profit_eth": (fees.get("profit_eth") if fees is not None else ""),
+                "txcount": (fees.get("txcount") if fees is not None else ""),
+            }
+        )
+
+    # Provide a stable header for downstream schema checks.
+    header = list(PANEL_OUTPUT_COLUMNS)
+    return header, rows, counts
+
+
+def build_panel_from_rows(
+    *,
+    registry: dict[str, RegistryRow],
+    header: list[str],
+    rows: list[dict[str, str]],
+) -> tuple[list[dict[str, object]], dict[str, int]]:
 
     counts = {
         "input_rows": 0,
@@ -280,82 +370,83 @@ def build_panel(*, registry: dict[str, RegistryRow], input_csv: Path) -> tuple[l
     out_rows: list[dict[str, object]] = []
     seen_keys: set[tuple[str, str]] = set()
 
-    with input_csv.open("r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        if reader.fieldnames is None:
-            raise SystemExit("Input CSV missing header row")
-        _validate_input_columns(reader.fieldnames)
+    _validate_input_columns(header)
 
-        for i, r in enumerate(reader, start=2):
-            counts["input_rows"] += 1
-            raw_date = (r.get("date_utc") or "").strip()
-            raw_rollup_id = (r.get("rollup_id") or "").strip()
-            if raw_date == "" or raw_rollup_id == "":
-                raise SystemExit(f"input row {i}: missing date_utc or rollup_id")
+    for i, r in enumerate(rows, start=2):
+        counts["input_rows"] += 1
+        raw_date = (r.get("date_utc") or "").strip()
+        raw_rollup_id = (r.get("rollup_id") or "").strip()
+        if raw_date == "" or raw_rollup_id == "":
+            raise SystemExit(f"input row {i}: missing date_utc or rollup_id")
 
-            d = _parse_date(raw_date, label="date_utc")
-            if raw_rollup_id not in registry:
-                raise SystemExit(f"input row {i}: unknown rollup_id (not in registry): {raw_rollup_id!r}")
-            reg = registry[raw_rollup_id]
+        d = _parse_date(raw_date, label="date_utc")
+        if raw_rollup_id not in registry:
+            raise SystemExit(f"input row {i}: unknown rollup_id (not in registry): {raw_rollup_id!r}")
+        reg = registry[raw_rollup_id]
 
+        try:
+            included = reg.includes(d)
+        except SystemExit:
+            raise
+
+        if not reg.in_scope:
+            counts["dropped_out_of_scope"] += 1
+            continue
+        if reg.status == "deprecated":
+            counts["dropped_deprecated"] += 1
+            continue
+        if not included:
+            counts["dropped_outside_window"] += 1
+            continue
+
+        raw_fees = (r.get("l2_fees_eth") or "").strip()
+        raw_rent = (r.get("rent_paid_eth") or "").strip()
+        if raw_fees == "" or raw_rent == "":
+            counts["dropped_missing_core"] += 1
+            continue
+
+        fees = _parse_decimal(raw_fees, label="l2_fees_eth")
+        rent = _parse_decimal(raw_rent, label="rent_paid_eth")
+        if fees < 0 or rent < 0:
+            raise SystemExit(f"input row {i}: negative values not allowed (fees={fees}, rent={rent})")
+
+        key = (d.isoformat(), raw_rollup_id)
+        if key in seen_keys:
+            raise SystemExit(f"input row {i}: duplicate (date_utc, rollup_id): {key}")
+        seen_keys.add(key)
+
+        out: dict[str, object] = {
+            "date_utc": d.isoformat(),
+            "rollup_id": raw_rollup_id,
+            "l2_fees_eth": _format_decimal(fees),
+            "rent_paid_eth": _format_decimal(rent),
+            "profit_eth": "",
+            "txcount": "",
+        }
+
+        raw_profit = (r.get("profit_eth") or "").strip()
+        if raw_profit != "":
+            out["profit_eth"] = _format_decimal(_parse_decimal(raw_profit, label="profit_eth"))
+        raw_txcount = (r.get("txcount") or "").strip()
+        if raw_txcount != "":
             try:
-                included = reg.includes(d)
-            except SystemExit:
-                raise
+                txcount = int(raw_txcount)
+            except ValueError as exc:
+                raise SystemExit(f"input row {i}: invalid txcount: {raw_txcount!r}") from exc
+            if txcount < 0:
+                raise SystemExit(f"input row {i}: negative txcount not allowed: {txcount}")
+            out["txcount"] = str(txcount)
 
-            if not reg.in_scope:
-                counts["dropped_out_of_scope"] += 1
-                continue
-            if reg.status == "deprecated":
-                counts["dropped_deprecated"] += 1
-                continue
-            if not included:
-                counts["dropped_outside_window"] += 1
-                continue
-
-            raw_fees = (r.get("l2_fees_eth") or "").strip()
-            raw_rent = (r.get("rent_paid_eth") or "").strip()
-            if raw_fees == "" or raw_rent == "":
-                counts["dropped_missing_core"] += 1
-                continue
-
-            fees = _parse_decimal(raw_fees, label="l2_fees_eth")
-            rent = _parse_decimal(raw_rent, label="rent_paid_eth")
-            if fees < 0 or rent < 0:
-                raise SystemExit(f"input row {i}: negative values not allowed (fees={fees}, rent={rent})")
-
-            key = (d.isoformat(), raw_rollup_id)
-            if key in seen_keys:
-                raise SystemExit(f"input row {i}: duplicate (date_utc, rollup_id): {key}")
-            seen_keys.add(key)
-
-            out: dict[str, object] = {
-                "date_utc": d.isoformat(),
-                "rollup_id": raw_rollup_id,
-                "l2_fees_eth": _format_decimal(fees),
-                "rent_paid_eth": _format_decimal(rent),
-                "profit_eth": "",
-                "txcount": "",
-            }
-
-            raw_profit = (r.get("profit_eth") or "").strip()
-            if raw_profit != "":
-                out["profit_eth"] = _format_decimal(_parse_decimal(raw_profit, label="profit_eth"))
-            raw_txcount = (r.get("txcount") or "").strip()
-            if raw_txcount != "":
-                try:
-                    txcount = int(raw_txcount)
-                except ValueError as exc:
-                    raise SystemExit(f"input row {i}: invalid txcount: {raw_txcount!r}") from exc
-                if txcount < 0:
-                    raise SystemExit(f"input row {i}: negative txcount not allowed: {txcount}")
-                out["txcount"] = str(txcount)
-
-            out_rows.append(out)
+        out_rows.append(out)
 
     out_rows.sort(key=lambda r: (str(r["date_utc"]), str(r["rollup_id"])))
     counts["output_rows"] = len(out_rows)
     return out_rows, counts
+
+
+def build_panel(*, registry: dict[str, RegistryRow], input_csv: Path) -> tuple[list[dict[str, object]], dict[str, int]]:
+    header, rows = _load_csv_rows(input_csv)
+    return build_panel_from_rows(registry=registry, header=header, rows=rows)
 
 
 def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
@@ -433,6 +524,8 @@ def main(argv: list[str]) -> None:
     p.add_argument("--registry", default="registry/rollup_registry_v1.csv")
     p.add_argument("--schema", default="contracts/schemas/panel_schema_str_v1.yaml")
     p.add_argument("--input", dest="input_csv", default=None, help="Input candidate panel CSV")
+    p.add_argument("--fees-csv", dest="fees_csv", default=None, help="Join mode: growthepie vendor panel CSV with l2_fees_eth/profit/txcount")
+    p.add_argument("--rent-csv", dest="rent_csv", default=None, help="Join mode: on-chain rollup costs daily CSV with rent_paid_eth")
     p.add_argument("--out", dest="out_csv", default=None, help="Output CSV path (contract v1)")
 
     p.add_argument("--write-manifest", action="store_true", help="Write a processed manifest via scripts/make_processed_manifest.py")
@@ -451,13 +544,46 @@ def main(argv: list[str]) -> None:
         input_csv = root / "data/samples/panels/daily_rollup_panel_v1_sample.csv"
         out_csv = root / "data/processed/panels/daily_rollup_panel_v1_sample.csv"
     else:
-        if args.input_csv is None:
-            raise SystemExit("Missing --input (or use --sample)")
-        input_csv = Path(args.input_csv)
+        if (args.fees_csv is None) != (args.rent_csv is None):
+            raise SystemExit("Join mode requires both --fees-csv and --rent-csv (or neither).")
+        if args.fees_csv is not None and args.input_csv is not None:
+            raise SystemExit("Provide either --input (pre-joined) or --fees-csv/--rent-csv (join mode), not both.")
+
+        input_csv = None
+        join_inputs: dict[str, Path] | None = None
+        join_counts: dict[str, int] | None = None
+        if args.fees_csv is not None:
+            join_inputs = {"fees_csv": Path(args.fees_csv), "rent_csv": Path(args.rent_csv)}
+        else:
+            if args.input_csv is None:
+                raise SystemExit("Missing --input (or use --sample or join mode)")
+            input_csv = Path(args.input_csv)
         out_csv = Path(args.out_csv) if args.out_csv else (root / "data/processed/panels/daily_rollup_panel_v1.csv")
 
     registry = load_registry(registry_path if registry_path.is_absolute() else (root / registry_path))
-    rows, counts = build_panel(registry=registry, input_csv=input_csv if input_csv.is_absolute() else (root / input_csv))
+    join_meta: dict[str, object] | None = None
+    if args.sample:
+        rows, counts = build_panel(registry=registry, input_csv=input_csv)
+    else:
+        if args.fees_csv is not None:
+            assert join_inputs is not None
+            fees_csv = join_inputs["fees_csv"]
+            rent_csv = join_inputs["rent_csv"]
+            fees_abs = fees_csv if fees_csv.is_absolute() else (root / fees_csv)
+            rent_abs = rent_csv if rent_csv.is_absolute() else (root / rent_csv)
+            header, candidate_rows, join_counts = _join_fees_and_rent(fees_csv=fees_abs, rent_csv=rent_abs)
+            join_meta = {
+                "fees_csv": str(_ensure_within_repo(root, fees_abs.resolve())),
+                "rent_csv": str(_ensure_within_repo(root, rent_abs.resolve())),
+                "join_counts": join_counts,
+            }
+            rows, counts = build_panel_from_rows(registry=registry, header=header, rows=candidate_rows)
+        else:
+            assert input_csv is not None
+            rows, counts = build_panel(
+                registry=registry,
+                input_csv=input_csv if input_csv.is_absolute() else (root / input_csv),
+            )
     _write_csv(out_csv if out_csv.is_absolute() else (root / out_csv), rows)
 
     if args.write_manifest:
@@ -471,7 +597,18 @@ def main(argv: list[str]) -> None:
         manifest_inputs: list[Path] = []
         manifest_inputs.append(registry_path if registry_path.is_absolute() else (root / registry_path))
         manifest_inputs.append(schema_path if schema_path.is_absolute() else (root / schema_path))
-        manifest_inputs.append(input_csv if input_csv.is_absolute() else (root / input_csv))
+        if args.sample:
+            manifest_inputs.append(input_csv)
+        else:
+            if args.fees_csv is not None:
+                assert join_inputs is not None
+                fees_csv = join_inputs["fees_csv"]
+                rent_csv = join_inputs["rent_csv"]
+                manifest_inputs.append(fees_csv if fees_csv.is_absolute() else (root / fees_csv))
+                manifest_inputs.append(rent_csv if rent_csv.is_absolute() else (root / rent_csv))
+            else:
+                assert input_csv is not None
+                manifest_inputs.append(input_csv if input_csv.is_absolute() else (root / input_csv))
         for extra in args.manifest_inputs:
             pth = Path(extra)
             manifest_inputs.append(pth if pth.is_absolute() else (root / pth))
@@ -500,6 +637,8 @@ def main(argv: list[str]) -> None:
             },
             "counts": counts,
         }
+        if join_meta is not None:
+            meta["join"] = join_meta
 
         _write_processed_manifest(
             name=manifest_name,
