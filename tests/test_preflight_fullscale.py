@@ -25,6 +25,17 @@ def _write_backlog_task(path: Path, task_id: str, outputs: list[str]) -> None:
 
 
 class PreflightFullscaleHelpersTest(unittest.TestCase):
+    def test_required_tools_for_profile(self) -> None:
+        self.assertEqual(preflight._required_tools_for_profile("base"), ["python", "git"])
+        self.assertEqual(
+            preflight._required_tools_for_profile("bigquery"),
+            ["python", "git", "gcloud", "bq"],
+        )
+        self.assertEqual(
+            preflight._required_tools_for_profile("fullscale"),
+            ["python", "git", "codex", "tmux"],
+        )
+
     def test_check_required_paths_returns_missing_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

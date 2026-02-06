@@ -46,6 +46,15 @@ def _check_env(required_vars: list[str]) -> list[str]:
     return missing
 
 
+def _required_tools_for_profile(profile: str) -> list[str]:
+    tools = ["python", "git"]
+    if profile == "bigquery":
+        tools.extend(["gcloud", "bq"])
+    if profile == "fullscale":
+        tools.extend(["codex", "tmux"])
+    return tools
+
+
 def _check_required_paths(root: Path, relpaths: list[str]) -> list[str]:
     missing: list[str] = []
     for relpath in relpaths:
@@ -211,9 +220,7 @@ def main(argv: list[str]) -> None:
     if args.profile == "onchain":
         required_env.add("ETH_RPC_URL")
 
-    required_tools = ["python", "git"]
-    if args.profile == "bigquery":
-        required_tools.extend(["gcloud", "bq"])
+    required_tools = _required_tools_for_profile(args.profile)
     missing_tools = _check_tools(required_tools)
     missing_env = _check_env(sorted(required_env))
 
