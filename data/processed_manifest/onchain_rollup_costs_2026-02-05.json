@@ -159,14 +159,14 @@
   "name": "onchain_rollup_costs",
   "outputs": [
     {
-      "bytes": 452,
+      "bytes": 453,
       "path": "data/processed/onchain/rollup_costs_daily.csv",
-      "sha256": "a31634b96ff5e2ce8b3963c88dc4c4e2bef82579f6ebad012c13bff0469838e2"
+      "sha256": "8bd63ba618c123f2af3861eabc381743205f9e32fce0c87736c165ef4fae4b20"
     },
     {
-      "bytes": 1373,
+      "bytes": 1374,
       "path": "data/processed/onchain/rollup_costs_decomposition_daily.csv",
-      "sha256": "8bf35bbe51838f5e8cbfcdb817c5b81cb00ca23a51afedf56a7037057fc6655d"
+      "sha256": "d13088b27e0f260b0af6ac6a22e5f0aa346651d98faf37b223d8895e6b6acc9e"
     }
   ],
   "schema_version": 1,
