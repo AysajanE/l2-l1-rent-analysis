@@ -81,11 +81,12 @@ Outputs should be rebuildable from raw snapshots (SQL + query outputs) and shoul
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-06
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to produce the authoritative on-chain rent series required for STR.
 - 2026-02-05: Explicitly required conformance to the W0 on-chain rollup cost contracts to prevent schema drift.
+
+
+- 2026-02-06: Claimed by swarm runner; starting worker (branch: T088_onchain_compute_rollup_daily_costs_and_decomposition).
