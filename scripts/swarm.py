@@ -52,6 +52,7 @@ QUALITY_GATES_ALWAYS_BLOCK = {
     "registry_change_discipline",
 }
 RUNTIME_IGNORED_ROOTS = ("data/raw/", "data/processed/")
+WORKER_EDITABLE_TASK_SECTIONS = {"Status", "Notes / Decisions"}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -379,6 +380,21 @@ def claimed_task_ids(remote: str, base_branch: str) -> set[str]:
     return claimed
 
 
+def _active_claimed_task_ids(*, repo: Path, claimed_ids: set[str]) -> set[str]:
+    out: set[str] = set()
+    for tid in claimed_ids:
+        tf = _find_task_file_anywhere(tid, repo)
+        if tf is None:
+            continue
+        try:
+            t = load_task(tf)
+        except Exception:
+            continue
+        if t.state == "active":
+            out.add(tid)
+    return out
+
+
 def ready_backlog_tasks(*, done_ids: set[str], claimed_ids: set[str]) -> list[Task]:
     tasks = [t for t in list_tasks(task_dir("backlog")) if t.state == "backlog"]
     ready: list[Task] = []
@@ -673,6 +689,60 @@ def tmux_spawn_task_window(
 def _git_current_branch(cwd: Path) -> str:
     cp = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd, capture=True, check=True)
     return (cp.stdout or "").strip()
+
+
+def _git_config_get(cwd: Path, key: str) -> str | None:
+    cp = _run(["git", "config", "--get", key], cwd=cwd, capture=True, check=False)
+    if cp.returncode != 0:
+        return None
+    value = (cp.stdout or "").strip()
+    return value if value else None
+
+
+def _git_identity_missing(cwd: Path) -> list[str]:
+    missing: list[str] = []
+    if _git_config_get(cwd, "user.name") is None:
+        missing.append("user.name")
+    if _git_config_get(cwd, "user.email") is None:
+        missing.append("user.email")
+    return missing
+
+
+def _require_git_identity(cwd: Path) -> None:
+    missing = _git_identity_missing(cwd)
+    if missing:
+        raise SystemExit(
+            "Missing git identity for unattended swarm run. "
+            f"Configure {', '.join(missing)} in this repo before starting."
+        )
+
+
+def _git_commit_and_push(*, cwd: Path, message: str, remote: str, strict: bool) -> None:
+    cp_commit = _run(["git", "commit", "-m", message], cwd=cwd, capture=True, check=False)
+    if cp_commit.returncode != 0:
+        output = (cp_commit.stdout or "").strip()
+        msg = f"git commit failed rc={cp_commit.returncode} message={message}"
+        if output:
+            msg = f"{msg}; output_tail={output[-800:]}"
+        if strict:
+            raise SystemExit(msg)
+        print(f"[warn] {msg}", file=sys.stderr)
+        return
+
+    cp_push = _run(
+        ["git", "push", "-u", remote, _git_current_branch(cwd)],
+        cwd=cwd,
+        capture=True,
+        check=False,
+    )
+    if cp_push.returncode != 0:
+        output = (cp_push.stdout or "").strip()
+        msg = f"git push failed rc={cp_push.returncode} branch={_git_current_branch(cwd)} remote={remote}"
+        if output:
+            msg = f"{msg}; output_tail={output[-800:]}"
+        if strict:
+            raise SystemExit(msg)
+        print(f"[warn] {msg}", file=sys.stderr)
 
 
 def _git_has_changes(cwd: Path) -> bool:
@@ -1106,6 +1176,30 @@ def _collect_changed_paths(
     return delta_entries, sorted(changed_paths)
 
 
+def _normalize_task_text_outside_worker_sections(text: str) -> str:
+    """Return a normalized view of task text that ignores worker-editable sections.
+
+    Workers are allowed to edit only `## Status` and `## Notes / Decisions`.
+    Any mutation outside those sections is considered a control-plane violation.
+    """
+    lines = text.splitlines()
+    out: list[str] = []
+    in_allowed_section = False
+    for line in lines:
+        match = re.match(r"^##\s+(.*)\s*$", line)
+        if match is not None:
+            heading = match.group(1).strip()
+            in_allowed_section = heading in WORKER_EDITABLE_TASK_SECTIONS
+            out.append(line)
+            if in_allowed_section:
+                out.append(f"<<SECTION:{heading}>>")
+            continue
+        if in_allowed_section:
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
 def _path_is_allowed(
     *,
     path: str,
@@ -1523,10 +1617,24 @@ def _maybe_spawn_repairs(args: argparse.Namespace, repo: Path) -> None:
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
+    repo = _repo_root()
     done_ids = done_task_ids()
     claimed_ids = claimed_task_ids(args.remote, args.base_branch)
-    ready = ready_backlog_tasks(done_ids=done_ids, claimed_ids=claimed_ids)
-    print(json.dumps({"done": sorted(done_ids), "claimed": sorted(claimed_ids), "ready": [dataclasses.asdict(t) for t in ready]}, indent=2, sort_keys=True, default=str))
+    active_claimed_ids = _active_claimed_task_ids(repo=repo, claimed_ids=claimed_ids)
+    ready = ready_backlog_tasks(done_ids=done_ids, claimed_ids=active_claimed_ids)
+    print(
+        json.dumps(
+            {
+                "done": sorted(done_ids),
+                "claimed": sorted(claimed_ids),
+                "claimed_active": sorted(active_claimed_ids),
+                "ready": [dataclasses.asdict(t) for t in ready],
+            },
+            indent=2,
+            sort_keys=True,
+            default=str,
+        )
+    )
     return 0
 
 
@@ -1534,10 +1642,12 @@ def cmd_tick(args: argparse.Namespace) -> int:
     repo = _repo_root()
     if args.unattended:
         _require_unattended_ack()
+        _require_git_identity(repo)
 
     done_ids = done_task_ids()
     claimed_ids = claimed_task_ids(args.remote, args.base_branch)
-    ready = ready_backlog_tasks(done_ids=done_ids, claimed_ids=claimed_ids)
+    active_claimed_ids = _active_claimed_task_ids(repo=repo, claimed_ids=claimed_ids)
+    ready = ready_backlog_tasks(done_ids=done_ids, claimed_ids=active_claimed_ids)
     locked_workstreams, parallel_only_workstreams = _compute_workstream_locks(repo=repo, claimed_ids=claimed_ids)
     ready = _apply_workstream_concurrency_filters(
         tasks=sorted(ready, key=lambda t: (_priority_rank(t.priority), t.task_id)),
@@ -1644,6 +1754,7 @@ def cmd_tmux_start(args: argparse.Namespace) -> int:
     repo = _repo_root()
     if args.unattended:
         _require_unattended_ack()
+        _require_git_identity(repo)
     tmux_ensure_session(args.tmux_session, repo)
     if args.unattended:
         # Robust tmux env propagation so unattended mode works inside tmux windows.
@@ -1708,6 +1819,7 @@ def cmd_loop(args: argparse.Namespace) -> int:
     repo = _repo_root()
     if args.unattended:
         _require_unattended_ack()
+        _require_git_identity(repo)
     interval = max(5, int(args.interval_seconds))
     print(f"Swarm loop started (interval={interval}s). Repo: {repo}")
     while True:
@@ -1738,6 +1850,7 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     # Guardrails for unattended mode.
     if args.unattended:
         _require_unattended_ack()
+        _require_git_identity(repo)
         print(
             "WARNING: --unattended disables approval prompts. ONLY run in an external sandbox with no secrets (see AGENTS.md).",
             file=sys.stderr,
@@ -1758,8 +1871,12 @@ def cmd_run_task(args: argparse.Namespace) -> int:
             note_line=f"Claimed by swarm runner; starting worker (branch: {_git_current_branch(repo)}).",
         )
         _run(["git", "add", str(task_file)], cwd=repo)
-        _run(["git", "commit", "-m", f"{task.task_id}: claim (active)"], cwd=repo, check=False)
-        _run(["git", "push", "-u", args.remote, _git_current_branch(repo)], cwd=repo, check=False)
+        _git_commit_and_push(
+            cwd=repo,
+            message=f"{task.task_id}: claim (active)",
+            remote=args.remote,
+            strict=args.unattended,
+        )
 
     # Worker: Codex exec
     logs_dir = repo / "data" / "tmp" / "swarm_logs"
@@ -1770,6 +1887,7 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     task_rel = task_file.relative_to(repo).as_posix()
     task_paths = {task_rel}
     runtime_allowed_prefixes = _runtime_side_effect_prefixes_from_allowed_paths(task.allowed_paths)
+    task_text_before_worker = _read_text(task_file)
 
     status_before_worker = _git_status_entries(repo)
     untracked_ignored_before = _snapshot_untracked_ignored_fingerprints(
@@ -1817,8 +1935,12 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         _update_task_status_and_notes(task_path=task_file, new_state="active", note_line=timeout_note)
         if _git_has_changes(repo):
             _run(["git", "add", "-A"], cwd=repo)
-            _run(["git", "commit", "-m", f"{task.task_id}: worker timeout"], cwd=repo, check=False)
-            _run(["git", "push", "-u", args.remote, _git_current_branch(repo)], cwd=repo, check=False)
+            _git_commit_and_push(
+                cwd=repo,
+                message=f"{task.task_id}: worker timeout",
+                remote=args.remote,
+                strict=args.unattended,
+            )
         print(json.dumps({"task_id": task.task_id, "state": "active", "error": "worker_timeout"}, indent=2))
         return 1
 
@@ -1830,8 +1952,12 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         _update_task_status_and_notes(task_path=task_file, new_state="blocked", note_line=note)
         if _git_has_changes(repo):
             _run(["git", "add", "-A"], cwd=repo)
-            _run(["git", "commit", "-m", f"{task.task_id}: blocked ({reason})"], cwd=repo, check=False)
-            _run(["git", "push", "-u", args.remote, _git_current_branch(repo)], cwd=repo, check=False)
+            _git_commit_and_push(
+                cwd=repo,
+                message=f"{task.task_id}: blocked ({reason})",
+                remote=args.remote,
+                strict=args.unattended,
+            )
         print(
             json.dumps(
                 {
@@ -1911,6 +2037,18 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     )
     ownership_ok = True
     ownership_failures: list[dict[str, str]] = []
+    task_text_after_worker = _read_text(task_file) if task_file.exists() else ""
+    if _normalize_task_text_outside_worker_sections(task_text_before_worker) != _normalize_task_text_outside_worker_sections(
+        task_text_after_worker
+    ):
+        ownership_ok = False
+        ownership_failures.append(
+            {
+                "path": task_rel,
+                "reason": "task_file_sections_modified_outside_status_notes",
+            }
+        )
+
     for entry in status_entries:
         xy = entry.get("xy", "")
         p = entry.get("path", "")
@@ -1996,8 +2134,12 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     # Commit + push
     if _git_has_changes(repo):
         _run(["git", "add", "-A"], cwd=repo)
-        _run(["git", "commit", "-m", f"{task.task_id}: {new_state}"], cwd=repo, check=False)
-        _run(["git", "push", "-u", args.remote, _git_current_branch(repo)], cwd=repo, check=False)
+        _git_commit_and_push(
+            cwd=repo,
+            message=f"{task.task_id}: {new_state}",
+            remote=args.remote,
+            strict=args.unattended,
+        )
 
     # PR (optional)
     if args.create_pr:

@@ -2,7 +2,9 @@
 
 This directory is the repo’s coordination layer.
 
-## Who may change what
+## MUST
+
+- Treat orchestrator files as control-plane interfaces for the swarm. Avoid silent behavior changes.
 
 - **Planner only**:
   - moves tasks across folders (`backlog/`, `active/`, `ready_for_review/`, `blocked/`, `done/`)
@@ -27,6 +29,17 @@ Workers do NOT self-assign tasks unless the Planner explicitly says so.
   `backlog | active | blocked | ready_for_review | done`
 - If blocked: include `@human` and the smallest decision needed.
 
-## No rewrites
+## SHOULD
 
-Do not rewrite task context/history. Append notes, don’t rewrite them.
+- Prefer additive changes in orchestration semantics over removals/renames.
+- If changing orchestration keys or semantics, update:
+  - `docs/runbook_swarm*.md`
+  - relevant templates in `.orchestrator/templates/`
+  - parser/validator logic in `scripts/` and tests
+- Keep machine-readable files valid (YAML/JSON/Markdown structure) after edits.
+
+## DO NOT
+
+- Do not rewrite task context/history. Append notes, do not overwrite history.
+- Do not embed secrets in orchestration files.
+- Do not change pipeline semantics quietly without documenting the change.

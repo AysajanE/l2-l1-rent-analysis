@@ -46,6 +46,39 @@ def _check_env(required_vars: list[str]) -> list[str]:
     return missing
 
 
+def _git_config_get(root: Path, key: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "config", "--get", key],
+            cwd=str(root),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return None
+    if result.returncode != 0:
+        return None
+    value = (result.stdout or "").strip()
+    return value if value else None
+
+
+def _check_git_identity(root: Path) -> dict[str, object]:
+    user_name = _git_config_get(root, "user.name")
+    user_email = _git_config_get(root, "user.email")
+    missing: list[str] = []
+    if user_name is None:
+        missing.append("user.name")
+    if user_email is None:
+        missing.append("user.email")
+    return {
+        "ok": len(missing) == 0,
+        "missing": missing,
+        "user_name": user_name,
+        "user_email": user_email,
+    }
+
+
 def _required_tools_for_profile(profile: str) -> list[str]:
     tools = ["python", "git"]
     if profile == "bigquery":
@@ -246,6 +279,11 @@ def main(argv: list[str]) -> None:
             ok = False
         details["missing_pipeline_modules"] = missing_modules
 
+        git_identity = _check_git_identity(root)
+        if not bool(git_identity.get("ok", False)):
+            ok = False
+        details["git_identity"] = git_identity
+
         backlog_drift = _find_backlog_output_drift(root)
         if backlog_drift:
             ok = False
@@ -290,6 +328,12 @@ def main(argv: list[str]) -> None:
                 missing_modules = details.get("missing_pipeline_modules") or []
                 if isinstance(missing_modules, list) and len(missing_modules) > 0:
                     print(f"missing_pipeline_modules: {', '.join(str(x) for x in missing_modules)}")
+
+                git_identity = details.get("git_identity")
+                if isinstance(git_identity, dict) and not bool(git_identity.get("ok", False)):
+                    missing_identity = git_identity.get("missing") or []
+                    if isinstance(missing_identity, list) and len(missing_identity) > 0:
+                        print(f"missing_git_identity: {', '.join(str(x) for x in missing_identity)}")
 
                 control_plane_drift = details.get("control_plane_drift") or []
                 if isinstance(control_plane_drift, list) and len(control_plane_drift) > 0:

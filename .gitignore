@@ -98,6 +98,8 @@ data/cache/
 
 # Internal discussion docs (do not commit)
 docs/discussion_on_building_autonomous_AI_agents_research_workflow.md
+docs/feedbacks/
+
 
 # Logs / temp
 *.log

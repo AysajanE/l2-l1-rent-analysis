@@ -2,10 +2,16 @@
 
 Validation is the anti-dashboard-science layer.
 
-## Requirements
+## MUST
 
 - Implement deterministic checks that compare sources and flag deltas.
 - Use tolerances from `docs/protocol.md`. Do not invent new ones.
+- Validation failures must be actionable:
+  - include field/metric
+  - expected vs observed
+  - suggested next fix/check
+- Keep validators aligned with contract schemas/templates in `contracts/`.
+- Add/update tests for validator behavior and bug fixes.
 
 ## Outputs
 
@@ -18,6 +24,11 @@ If validation fails beyond tolerance, block with:
 - where it fails
 - plausible causes
 - minimal next experiment to isolate cause
+
+## SHOULD
+
+- Prefer structured error objects/messages over plain free text.
+- Keep validation logic side-effect free.
 
 ## CLI contract (swarm-safe)
 
@@ -42,3 +53,8 @@ Top-level keys:
 - `failures` (list)
 
 Do not emit machine-specific absolute paths in reports; prefer repo-relative paths.
+
+## DO NOT
+
+- Do not accept unknown fields silently when contracts are strict.
+- Do not hide schema drift by auto-fixing without recording a migration/decision.

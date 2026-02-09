@@ -2,11 +2,13 @@
 
 ETL is allowed to touch the network. Everything must be reproducible.
 
-## Non-negotiables
+## MUST
 
 - Every external fetch must be cached/snapshotted.
 - Never overwrite snapshots; write dated folders/files.
 - Record endpoint, parameters, and timestamp in a small manifest file.
+- Preserve schema contracts; if schema changes are required, update validators/docs and document migration intent.
+- Keep all transforms in code (no manual edits).
 
 ## Outputs
 
@@ -14,11 +16,14 @@ ETL is allowed to touch the network. Everything must be reproducible.
 - Normalized outputs (rebuildable, not committed): `data/processed/<source>/...`
 - Provenance manifests (tracked): `data/raw_manifest/<source>_<YYYY-MM-DD>.json`
 
-## Reliability
+## SHOULD
 
 - Add retries with exponential backoff for APIs.
 - Log failures with enough detail to replay.
+- Add parsing/transform tests for key schema/column guarantees.
+- Cache expensive deterministic steps when useful.
 
-## No hidden transforms
+## DO NOT
 
-All transformation steps must be code, not manual edits.
+- Do not make hidden transforms outside code.
+- Do not silently coerce schema-breaking inputs; fail with clear errors.

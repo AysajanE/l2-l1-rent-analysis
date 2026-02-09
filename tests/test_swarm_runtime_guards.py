@@ -190,6 +190,86 @@ class SwarmRuntimeGuardsTest(unittest.TestCase):
         self.assertEqual(locked, {"W2"})
         self.assertEqual(parallel_only, {"W3"})
 
+    def test_active_claimed_task_ids_filters_to_active_only(self) -> None:
+        repo = Path("/tmp/repo")
+
+        def _task(task_id: str, state: str) -> swarm.Task:
+            return swarm.Task(
+                path=Path(f".orchestrator/backlog/{task_id}.md"),
+                task_id=task_id,
+                title=task_id,
+                workstream="W1",
+                role="Worker",
+                priority="medium",
+                dependencies=[],
+                parallel_ok=False,
+                allowed_paths=[],
+                disallowed_paths=[],
+                outputs=[],
+                gates=[],
+                stop_conditions=[],
+                required_env=[],
+                state=state,
+                last_updated=None,
+            )
+
+        tasks_by_id = {
+            "T900": _task("T900", "backlog"),
+            "T901": _task("T901", "blocked"),
+            "T902": _task("T902", "active"),
+        }
+
+        with (
+            mock.patch.object(swarm, "_find_task_file_anywhere", side_effect=lambda tid, _repo: tasks_by_id[tid].path),
+            mock.patch.object(swarm, "load_task", side_effect=lambda path: tasks_by_id[path.stem]),
+        ):
+            active_claimed = swarm._active_claimed_task_ids(repo=repo, claimed_ids=set(tasks_by_id.keys()))
+
+        self.assertEqual(active_claimed, {"T902"})
+
+    def test_normalize_task_text_ignores_status_and_notes_but_not_context(self) -> None:
+        before = "\n".join(
+            [
+                "## Context",
+                "context_v1",
+                "## Status",
+                "- State: backlog",
+                "## Notes / Decisions",
+                "- initial",
+            ]
+        )
+        after_allowed_only = "\n".join(
+            [
+                "## Context",
+                "context_v1",
+                "## Status",
+                "- State: active",
+                "- Last updated: 2026-02-09",
+                "## Notes / Decisions",
+                "- initial",
+                "- claimed",
+            ]
+        )
+        after_context_changed = "\n".join(
+            [
+                "## Context",
+                "context_v2",
+                "## Status",
+                "- State: active",
+                "## Notes / Decisions",
+                "- initial",
+            ]
+        )
+
+        self.assertEqual(
+            swarm._normalize_task_text_outside_worker_sections(before),
+            swarm._normalize_task_text_outside_worker_sections(after_allowed_only),
+        )
+        self.assertNotEqual(
+            swarm._normalize_task_text_outside_worker_sections(before),
+            swarm._normalize_task_text_outside_worker_sections(after_context_changed),
+        )
+
     def test_run_task_treats_out_of_scope_quality_gate_failure_as_warning(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             repo = Path(tmpdir)

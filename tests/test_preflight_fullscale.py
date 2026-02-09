@@ -53,6 +53,36 @@ class PreflightFullscaleHelpersTest(unittest.TestCase):
 
             self.assertEqual(missing, ["src/etl/issuance_fetch.py"])
 
+    def test_check_git_identity_reports_missing_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            responses = [
+                subprocess.CompletedProcess(args=["git", "config"], returncode=1, stdout="", stderr=""),
+                subprocess.CompletedProcess(args=["git", "config"], returncode=0, stdout="bot@example.com\n", stderr=""),
+            ]
+            with mock.patch("scripts.preflight.subprocess.run", side_effect=responses):
+                details = preflight._check_git_identity(root)
+
+        self.assertFalse(details["ok"])
+        self.assertEqual(details["missing"], ["user.name"])
+        self.assertIsNone(details["user_name"])
+        self.assertEqual(details["user_email"], "bot@example.com")
+
+    def test_check_git_identity_reports_ok_when_present(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            responses = [
+                subprocess.CompletedProcess(args=["git", "config"], returncode=0, stdout="swarm-bot\n", stderr=""),
+                subprocess.CompletedProcess(args=["git", "config"], returncode=0, stdout="swarm-bot@users.noreply.github.com\n", stderr=""),
+            ]
+            with mock.patch("scripts.preflight.subprocess.run", side_effect=responses):
+                details = preflight._check_git_identity(root)
+
+        self.assertTrue(details["ok"])
+        self.assertEqual(details["missing"], [])
+        self.assertEqual(details["user_name"], "swarm-bot")
+        self.assertEqual(details["user_email"], "swarm-bot@users.noreply.github.com")
+
     def test_is_checkable_output_path_filters_placeholders(self) -> None:
         self.assertTrue(preflight._is_checkable_output_path("src/etl/growthepie_fetch.py"))
         self.assertFalse(preflight._is_checkable_output_path("data/raw/growthepie/YYYY-MM-DD/..."))
