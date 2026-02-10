@@ -68,11 +68,30 @@ This task adds a deterministic, offline analysis script that produces a sample-m
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: done
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-05: Task created (Planner) to close the “decomposition plots over time” completeness gap using deterministic sample-mode artifacts.
 
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T101_analysis_rent_decomposition_plots_sample).
+
+- 2026-02-10: Implemented deterministic sample-mode rent decomposition artifacts.
+  - Added: `src/analysis/plot_rent_decomposition.py`
+  - Generated (sample mode):
+    - `reports/figures/rent_decomposition_sample.svg`
+    - `reports/tables/rent_decomposition_sample.csv`
+    - `reports/tables/rent_decomposition_sample_run.json`
+  - Repro:
+    - `python src/analysis/plot_rent_decomposition.py --sample`
+  - Gates:
+    - `make gate` => pass
+    - `make test` => pass (`Ran 46 tests`)
+  - Notes:
+    - The committed v2 sample fixture has empty `rent_base_fee_burn_eth` / `rent_priority_fee_eth` (coverage recorded in the run manifest). Sample-mode therefore primarily illustrates blob-burn share vs non-blob share post-Dencun.
+  - Handoff: `.orchestrator/handoff/H125_T101_rent_decomposition_plots_sample.md`
+
+
+- 2026-02-10: Judge: gates ok; ownership ok. Review log: /tmp/swarm-worktrees/wt-T101/data/tmp/swarm_logs/T101_20260210T115513Z_judge_review.txt
