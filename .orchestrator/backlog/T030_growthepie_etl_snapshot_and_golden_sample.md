@@ -138,3 +138,17 @@ This task builds a reproducible ETL that:
 
 
 - 2026-02-10: @human Judge blocked: gates_failed, path_ownership_violation. Review log: /tmp/swarm-worktrees/wt-T030/data/tmp/swarm_logs/T030_20260210T002146Z_judge_review.txt
+
+- 2026-02-10: Auto-repair pass (PR #28 context: `checks=failing`, failing check `gate`) executed with no scope expansion.
+  - Reproduced failure via `make gate`:
+    - `processed_manifest_consistency` missing outputs:
+      - `data/processed/panels/daily_rollup_panel_v1_sample.csv`
+      - `data/processed/onchain/rollup_costs_daily.csv`
+      - `data/processed/onchain/rollup_costs_decomposition_daily.csv`
+  - Constraint: fixing this gate requires edits under `data/processed/panels/` and `data/processed/onchain/`, which are outside T030 `allowed_paths`.
+  - @human: approve one of:
+    - temporary path-ownership override for this worker to materialize these three outputs, or
+    - hand off gate repair to W2/W9 owners and keep T030 blocked until those artifacts exist in-branch.
+
+
+- 2026-02-10: @human Judge blocked: gates_failed, path_ownership_violation. Review log: /tmp/swarm-worktrees/wt-T030/data/tmp/swarm_logs/T030_20260210T002309Z_judge_review.txt Repair context: Auto-repair: PR https://github.com/AysajanE/l2-l1-rent-analysis/pull/28 (checks=failing, mergeable=MERGEABLE, failing_checks=gate)
