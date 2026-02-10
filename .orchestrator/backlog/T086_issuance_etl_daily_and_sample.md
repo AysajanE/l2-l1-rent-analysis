@@ -73,11 +73,12 @@ For “burn vs issuance” style outputs and related interpretation, we need a d
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner); issuance is needed for “burn vs issuance” context and counterfactual framing.
 - 2026-02-05: Wired dependency on W0 issuance-definition lock (T097); W1 ETL must implement the locked `issuance_daily_v1` contract.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T086_issuance_etl_daily_and_sample).
