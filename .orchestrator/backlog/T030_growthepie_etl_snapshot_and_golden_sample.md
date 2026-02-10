@@ -152,3 +152,23 @@ This task builds a reproducible ETL that:
 
 
 - 2026-02-10: @human Judge blocked: gates_failed, path_ownership_violation. Review log: /tmp/swarm-worktrees/wt-T030/data/tmp/swarm_logs/T030_20260210T002309Z_judge_review.txt Repair context: Auto-repair: PR https://github.com/AysajanE/l2-l1-rent-analysis/pull/28 (checks=failing, mergeable=MERGEABLE, failing_checks=gate)
+
+- 2026-02-10: Worker reran T030 ETL (fresh append-only snapshot date `2026-02-09`) and revalidated determinism + gates.
+  - Snapshot + manifest:
+    - `python src/etl/growthepie_fetch.py --run-date 2026-02-09 --write-raw-manifest`
+    - Created `data/raw/growthepie/2026-02-09/` and `data/raw_manifest/growthepie_2026-02-09.json`.
+  - Deterministic offline rebuild checks:
+    - `python src/etl/growthepie_fetch.py --from-snapshot data/raw/growthepie/2026-02-09 --end-date 2026-02-09 --out-processed /tmp/vendor_daily_rollup_panel_rebuild_t030_20260209.csv`
+    - `cmp -s data/processed/growthepie/vendor_daily_rollup_panel.csv /tmp/vendor_daily_rollup_panel_rebuild_t030_20260209.csv` => identical.
+    - `python src/etl/growthepie_fetch.py --from-snapshot data/raw/growthepie/2026-02-09 --end-date 2026-02-09 --out-processed /tmp/vendor_daily_rollup_panel_rebuild_with_sample_t030_20260209.csv --write-sample --sample-out /tmp/vendor_daily_rollup_panel_sample_rebuild_t030_20260209.csv`
+    - `cmp -s data/samples/growthepie/vendor_daily_rollup_panel_sample.csv /tmp/vendor_daily_rollup_panel_sample_rebuild_t030_20260209.csv` => identical.
+  - Validation:
+    - `python src/validation/validate_vendor_panel.py --sample` -> exit 0
+    - `make gate` -> fails only on `processed_manifest_consistency` due missing outputs outside T030 `allowed_paths`:
+      - `data/processed/panels/daily_rollup_panel_v1_sample.csv`
+      - `data/processed/onchain/rollup_costs_daily.csv`
+      - `data/processed/onchain/rollup_costs_decomposition_daily.csv`
+  - @human: unblock requires either temporary path-ownership override for T030 to materialize these non-W1 outputs, or handoff to W2/W9 owners and rerun gate after those artifacts exist.
+
+
+- 2026-02-10: @human Judge blocked: gates_failed, path_ownership_violation. Review log: /tmp/swarm-worktrees/wt-T030/data/tmp/swarm_logs/T030_20260210T103151Z_judge_review.txt

@@ -6,8 +6,8 @@
 - data/samples/growthepie/vendor_daily_rollup_panel_sample.csv (exists=True)
 
 ## Metrics
-- daily_str_max: 0.2728606479820628
-- daily_str_min: 0.1054202770259513
+- daily_str_max: 0.9363937406073991
+- daily_str_min: 0.004553240443802255
 - daily_str_points: 71
 - date_max: 2024-04-30
 - date_min: 2024-02-20

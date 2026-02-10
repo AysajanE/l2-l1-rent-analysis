@@ -1,0 +1,38 @@
+{
+  "as_of_utc_date": "2026-02-09",
+  "command": "python src/etl/growthepie_fetch.py --run-date 2026-02-09 --write-raw-manifest",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "fetched_at_utc": "2026-02-10T10:30:00.054302+00:00",
+  "files": [
+    {
+      "bytes": 6316184,
+      "path": "data/raw/growthepie/2026-02-09/export/fees.json",
+      "sha256": "39c299760cf20616f9ec36c088cf24fae2a0f62ffac265772f7d0e3b51126d4d"
+    },
+    {
+      "bytes": 4128658,
+      "path": "data/raw/growthepie/2026-02-09/export/profit.json",
+      "sha256": "532df6e85aa052a43138365e023ca6f33da203928f6019eea65b7a2efd7de84f"
+    },
+    {
+      "bytes": 5638534,
+      "path": "data/raw/growthepie/2026-02-09/export/rent_paid.json",
+      "sha256": "42ca2f5ba83d3842e1408cadd2694597de7aafbc2528e42bec967476da2750d9"
+    },
+    {
+      "bytes": 3097463,
+      "path": "data/raw/growthepie/2026-02-09/export/txcount.json",
+      "sha256": "6c7a19069277d5915485176f2666a4a06762fe961c9b64099f6f9e1e6e3f7157"
+    },
+    {
+      "bytes": 225055,
+      "path": "data/raw/growthepie/2026-02-09/master.json",
+      "sha256": "0e75787b65fd1756d77151514318214b66cff6b2f6de86c8b252e09f1588227b"
+    }
+  ],
+  "source": "growthepie"
+}
