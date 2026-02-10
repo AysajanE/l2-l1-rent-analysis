@@ -86,10 +86,11 @@ Downstream tasks (T087B/T087C) must depend on this probe so the swarm fails fast
   - `python src/etl/l1_rpc_probe_blob_fields.py --as-of 2026-02-04 --scan-latest-blocks 2048 --out data/processed/l1/l1_rpc_probe_blob_fields_report.json --write-manifest`
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-04
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-04: Split from the original monolithic T087 per task-level feedback; this probe defines a concrete “blob-ready” acceptance test.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T087A_onchain_rpc_capability_probe_blob_fields).
