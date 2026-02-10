@@ -74,10 +74,11 @@ This task snapshots Blobscan outputs (append-only), normalizes a daily aggregate
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to support blob regime identification and cross-checks.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T084_blobscan_etl_blob_daily_and_sample).
