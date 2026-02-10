@@ -79,10 +79,11 @@ This task must depend on T087A so we do not attempt a broader extraction unless 
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-04: Split out from the original monolithic T087 to reduce risk and isolate blob-header-field issues early.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T087B_onchain_etl_extract_l1_block_headers_blob_fields).
