@@ -71,10 +71,39 @@ and any other enrichment explicitly defined in the v2 contract.
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: blocked
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to produce the enriched dataset used for regime + counterfactual analysis.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T090_panel_build_daily_rollup_panel_v2_enriched).
+
+- 2026-02-10: Implemented v2 builder hardening in `src/etl/panel_build_daily_rollup_panel_v2.py`.
+  - Added contract-aware table loading for CSV and `.parquet` paths (with CSV fallback for `.parquet` filenames).
+  - Added deterministic join metadata (key mode, matched/unmatched/assigned counts, conflict policy) and output-format metadata.
+  - Added processed-manifest support (`--write-manifest`, `--as-of`, `--manifest-*`) using `scripts/make_processed_manifest.py`.
+  - Added sample controls (`--write-sample`, `--sample-out`) and pinned default sample-mode inputs to the tracked v2 sample fixture for stable CI behavior.
+  - Full-mode defaults now resolve expected processed input candidates (`daily_rollup_panel_v1`, on-chain decomposition, blobscan, prices, issuance) when available.
+
+- 2026-02-10: Produced sample-mode artifacts and validated reproducibility.
+  - Command:
+    - `python src/etl/panel_build_daily_rollup_panel_v2.py --sample --write-sample --write-manifest --as-of 2026-02-10 --manifest-inputs data/processed_manifest/daily_rollup_panel_v1_sample_2026-02-10.json data/processed_manifest/blobscan_daily_2026-02-10.json data/processed_manifest/prices_daily_2026-02-10.json data/processed_manifest/issuance_daily_2026-02-10.json`
+  - Outputs:
+    - `data/processed/panels/daily_rollup_panel_v2_sample.csv` (untracked runtime artifact)
+    - `data/processed_manifest/daily_rollup_panel_v2_sample_2026-02-10.json` (tracked)
+    - `data/samples/panels/daily_rollup_panel_v2_sample.csv` (rewritten deterministically; no content change)
+
+- 2026-02-10: Gates/tests run.
+  - `make gate` => pass
+  - `make test` => pass (`Ran 46 tests`)
+
+- 2026-02-10: `@human` stop condition hit (`Missing upstream processed inputs`) for full-mode v2 output/manifest.
+  - Full-mode command attempted:
+    - `python src/etl/panel_build_daily_rollup_panel_v2.py --panel-v1-csv data/processed/panels/daily_rollup_panel_v1.parquet --decomposition-csv data/processed/onchain/rollup_costs_decomposition_daily.csv --l1-regime-csv data/processed/blobscan/blobscan_daily.parquet --prices-csv data/processed/prices/prices_daily.parquet --issuance-csv data/processed/issuance/issuance_daily.parquet --out data/processed/panels/daily_rollup_panel_v2.parquet`
+  - Missing in this worktree: `data/processed/panels/daily_rollup_panel_v1.parquet` and upstream processed enrichments under `data/processed/{onchain,blobscan,prices,issuance}/`.
+  - Decision needed: provide/regenerate these upstream processed inputs in-branch (or explicitly permit alternate full-mode input paths) to unblock `daily_rollup_panel_v2.parquet` + `daily_rollup_panel_v2_<YYYY-MM-DD>.json`.
+
+
+- 2026-02-10: @human Judge blocked: path_ownership_violation. Review log: /tmp/swarm-worktrees/wt-T090/data/tmp/swarm_logs/T090_20260210T110224Z_judge_review.txt

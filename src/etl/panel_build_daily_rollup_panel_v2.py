@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Build the contract v2 enriched daily rollup panel (CSV-only; stdlib-only).
+"""Build the contract v2 enriched daily rollup panel.
 
 The builder extends a v1 daily panel with optional enrichment inputs:
 - rollup-level decomposition (`date_utc`, `rollup_id`)
@@ -14,9 +14,12 @@ No network calls are performed.
 
 import argparse
 import csv
+import hashlib
 import json
 import re
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -90,6 +93,32 @@ L1_REGIME_OPTIONAL_COLUMNS = ("l1_blob_base_fee_wei", "l1_blob_gas_used")
 PRICES_REQUIRED_COLUMNS = ("date_utc", "eth_usd_close")
 ISSUANCE_REQUIRED_COLUMNS = ("date_utc", "issuance_eth")
 
+DEFAULT_SCHEMA_PATH = Path("contracts/schemas/panel_schema_str_v2.yaml")
+DEFAULT_SAMPLE_PANEL_V2 = Path("data/samples/panels/daily_rollup_panel_v2_sample.csv")
+DEFAULT_SAMPLE_OUTPUT = Path("data/processed/panels/daily_rollup_panel_v2_sample.csv")
+DEFAULT_FULL_OUTPUT = Path("data/processed/panels/daily_rollup_panel_v2.parquet")
+
+PANEL_V1_FULL_CANDIDATES = (
+    Path("data/processed/panels/daily_rollup_panel_v1.parquet"),
+    Path("data/processed/panels/daily_rollup_panel_v1.csv"),
+)
+DECOMPOSITION_FULL_CANDIDATES = (
+    Path("data/processed/onchain/rollup_costs_decomposition_daily.parquet"),
+    Path("data/processed/onchain/rollup_costs_decomposition_daily.csv"),
+)
+L1_REGIME_FULL_CANDIDATES = (
+    Path("data/processed/blobscan/blobscan_daily.parquet"),
+    Path("data/processed/blobscan/blobscan_daily.csv"),
+)
+PRICES_FULL_CANDIDATES = (
+    Path("data/processed/prices/prices_daily.parquet"),
+    Path("data/processed/prices/prices_daily.csv"),
+)
+ISSUANCE_FULL_CANDIDATES = (
+    Path("data/processed/issuance/issuance_daily.parquet"),
+    Path("data/processed/issuance/issuance_daily.csv"),
+)
+
 
 @dataclass(frozen=True)
 class SchemaField:
@@ -112,6 +141,43 @@ class JoinTable:
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _ensure_within_repo(root: Path, target: Path) -> Path:
+    try:
+        return target.resolve().relative_to(root.resolve())
+    except ValueError as exc:
+        raise SystemExit(f"path must be inside repo root: {root} (got {target})") from exc
+
+
+def _abs_if_not_none(root: Path, p: Path | None) -> Path | None:
+    if p is None:
+        return None
+    return p if p.is_absolute() else (root / p)
+
+
+def _first_existing(root: Path, candidates: tuple[Path, ...]) -> Path:
+    for rel in candidates:
+        abs_path = root / rel
+        if abs_path.exists():
+            return abs_path
+    return root / candidates[0]
+
+
+def _first_existing_or_none(root: Path, candidates: tuple[Path, ...]) -> Path | None:
+    for rel in candidates:
+        abs_path = root / rel
+        if abs_path.exists():
+            return abs_path
+    return None
 
 
 def _unquote_yaml_scalar(value: str) -> str:
@@ -254,15 +320,70 @@ def _format_decimal(value: Decimal) -> str:
     return format(value, "f")
 
 
+def _stringify_table_value(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value)
+
+
+def _load_parquet_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    try:
+        import pyarrow.parquet as pq  # type: ignore
+    except ModuleNotFoundError as exc:
+        raise SystemExit(
+            f"cannot read parquet input without pyarrow: {path}. "
+            "Install pyarrow or provide a CSV/plaintext input."
+        ) from exc
+
+    try:
+        table = pq.read_table(path)
+    except Exception as exc:
+        raise SystemExit(f"failed to parse parquet input: {path}: {exc}") from exc
+
+    field_names = list(table.column_names)
+    if len(field_names) == 0:
+        raise SystemExit(f"parquet input has no columns: {path}")
+
+    out_rows: list[dict[str, str]] = []
+    for row in table.to_pylist():
+        out_rows.append({name: _stringify_table_value(row.get(name)) for name in field_names})
+    return field_names, out_rows
+
+
 def _load_csv_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
     if not path.exists():
-        raise SystemExit(f"input CSV not found: {path}")
-    with path.open("r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        if reader.fieldnames is None:
-            raise SystemExit(f"input CSV missing header row: {path}")
-        rows = [dict(r) for r in reader]
+        raise SystemExit(f"input not found: {path}")
+    try:
+        with path.open("r", encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames is None:
+                raise SystemExit(f"input CSV missing header row: {path}")
+            rows = [dict(r) for r in reader]
+    except UnicodeDecodeError as exc:
+        raise SystemExit(f"input is not valid UTF-8 CSV text: {path}") from exc
     return list(reader.fieldnames), rows
+
+
+def _load_table_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    if path.suffix.lower() != ".parquet":
+        return _load_csv_rows(path)
+
+    parquet_error: str | None = None
+    try:
+        return _load_parquet_rows(path)
+    except SystemExit as exc:
+        parquet_error = str(exc)
+
+    try:
+        return _load_csv_rows(path)
+    except SystemExit as csv_exc:
+        raise SystemExit(
+            f"unable to parse input table at {path}\n"
+            f"- parquet_error: {parquet_error}\n"
+            f"- csv_error: {csv_exc}"
+        ) from csv_exc
 
 
 def _require_columns(*, header: list[str], required: tuple[str, ...], label: str, path: Path) -> None:
@@ -316,7 +437,7 @@ def _load_base_panel(
     path: Path,
     field_types: dict[str, str],
 ) -> dict[tuple[str, str], dict[str, str]]:
-    header, rows = _load_csv_rows(path)
+    header, rows = _load_table_rows(path)
     _require_columns(header=header, required=V1_REQUIRED_COLUMNS, label="v1 panel", path=path)
 
     out: dict[tuple[str, str], dict[str, str]] = {}
@@ -388,7 +509,7 @@ def _load_join_table(
     require_rollup_key: bool,
     field_types: dict[str, str],
 ) -> JoinTable:
-    header, rows = _load_csv_rows(path)
+    header, rows = _load_table_rows(path)
     _require_columns(header=header, required=required_columns, label=dataset_label, path=path)
 
     header_set = set(header)
@@ -442,12 +563,17 @@ def _apply_join(
     join_table: JoinTable,
     fields: tuple[str, ...],
     join_label: str,
-) -> None:
+) -> dict[str, int]:
+    matched_rows = 0
+    updated_rows = 0
+    assigned_values = 0
     for key, row in output_rows.items():
         d, rid = key
         matched = join_table.lookup(date_utc=d, rollup_id=rid)
         if matched is None:
             continue
+        matched_rows += 1
+        row_updated = False
         for field_name in fields:
             if field_name not in matched:
                 continue
@@ -461,6 +587,17 @@ def _apply_join(
                     f"existing={old_value!r} incoming={new_value!r}"
                 )
             row[field_name] = new_value
+            assigned_values += 1
+            row_updated = True
+        if row_updated:
+            updated_rows += 1
+
+    return {
+        "matched_rows": matched_rows,
+        "unmatched_rows": len(output_rows) - matched_rows,
+        "updated_rows": updated_rows,
+        "assigned_values": assigned_values,
+    }
 
 
 def _write_csv(path: Path, *, field_names: list[str], rows: list[dict[str, str]]) -> None:
@@ -472,19 +609,95 @@ def _write_csv(path: Path, *, field_names: list[str], rows: list[dict[str, str]]
             writer.writerow({k: row.get(k, "") for k in field_names})
 
 
+def _write_output_table(path: Path, *, field_names: list[str], rows: list[dict[str, str]]) -> dict[str, object]:
+    _write_csv(path, field_names=field_names, rows=rows)
+    note: str | None = None
+    writer = "csv"
+    if path.suffix.lower() == ".parquet":
+        note = "CSV payload written to .parquet filename for stdlib-only portability (no parquet dependency)."
+    return {
+        "path": str(path),
+        "writer": writer,
+        "note": note,
+    }
+
+
+def _command_tokens_for_manifest(root: Path) -> list[str]:
+    argv0 = Path(sys.argv[0])
+    try:
+        rel = _ensure_within_repo(root, argv0.resolve())
+        script_token = str(rel)
+    except SystemExit:
+        script_token = sys.argv[0]
+    return ["python", script_token, *sys.argv[1:]]
+
+
+def _write_processed_manifest(
+    *,
+    name: str,
+    as_of: date,
+    manifest_out: Path | None,
+    manifest_inputs: list[Path],
+    outputs: list[Path],
+    meta: dict[str, object],
+) -> Path:
+    root = _repo_root()
+    helper = root / "scripts/make_processed_manifest.py"
+    if not helper.exists():
+        raise SystemExit(f"missing helper script (expected): {helper}")
+
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as tf:
+        json.dump(meta, tf, indent=2, sort_keys=True)
+        tf.write("\n")
+        meta_path = Path(tf.name)
+
+    try:
+        cmd: list[str] = [
+            sys.executable,
+            str(helper),
+            name,
+            "--as-of",
+            as_of.isoformat(),
+            "--inputs",
+            *[str(_ensure_within_repo(root, p.resolve())) for p in manifest_inputs],
+            "--outputs",
+            *[str(_ensure_within_repo(root, p.resolve())) for p in outputs],
+            "--meta-json",
+            str(meta_path),
+        ]
+        if manifest_out is not None:
+            cmd.extend(["--out", str(_ensure_within_repo(root, manifest_out.resolve()))])
+        cmd.extend(["--", *_command_tokens_for_manifest(root)])
+        subprocess.run(cmd, cwd=root, check=True)
+    finally:
+        try:
+            meta_path.unlink()
+        except OSError:
+            pass
+
+    if manifest_out is not None:
+        return manifest_out
+    return root / "data/processed_manifest" / f"{name}_{as_of.isoformat()}.json"
+
+
+def _manifest_default_name(*, sample: bool) -> str:
+    return "daily_rollup_panel_v2_sample" if sample else "daily_rollup_panel_v2"
+
+
 def build_panel_v2(
     *,
-    panel_v1_csv: Path,
+    panel_v1_path: Path,
     schema_path: Path,
-    out_csv: Path,
-    decomposition_csv: Path | None,
-    l1_regime_csv: Path | None,
-    prices_csv: Path | None,
-    issuance_csv: Path | None,
+    out_path: Path,
+    sample_out_csv: Path | None,
+    decomposition_path: Path | None,
+    l1_regime_path: Path | None,
+    prices_path: Path | None,
+    issuance_path: Path | None,
     registry_version: str | None,
 ) -> dict[str, object]:
     field_names, field_types, field_nullable = _assert_contract_v2(schema_path)
-    base_map = _load_base_panel(path=panel_v1_csv, field_types=field_types)
+    base_map = _load_base_panel(path=panel_v1_path, field_types=field_types)
 
     output_rows: dict[tuple[str, str], dict[str, str]] = {}
     for key, base in base_map.items():
@@ -501,16 +714,16 @@ def build_panel_v2(
 
     join_meta: dict[str, object] = {}
 
-    if decomposition_csv is not None:
+    if decomposition_path is not None:
         decomp = _load_join_table(
-            path=decomposition_csv,
+            path=decomposition_path,
             dataset_label="decomposition_csv",
             required_columns=DECOMP_REQUIRED_COLUMNS,
             optional_columns=DECOMP_OPTIONAL_COLUMNS,
             require_rollup_key=True,
             field_types=field_types,
         )
-        _apply_join(
+        join_stats = _apply_join(
             output_rows=output_rows,
             join_table=decomp,
             fields=(
@@ -522,81 +735,129 @@ def build_panel_v2(
             ),
             join_label="decomposition join",
         )
-        join_meta["decomposition_rows"] = len(decomp.rows)
+        join_meta["decomposition"] = {
+            "path": str(decomp.path),
+            "key_mode": decomp.key_mode,
+            "input_rows": len(decomp.rows),
+            "fields": [
+                "rent_base_fee_burn_eth",
+                "rent_blob_fee_burn_eth",
+                "rent_priority_fee_eth",
+                "rent_blob_fee_burn_wei",
+                "rollup_blob_gas_used",
+            ],
+            "join_type": "left_join_on_(date_utc,rollup_id)",
+            "conflict_policy": "fail_on_nonempty_conflict",
+            **join_stats,
+        }
 
-    if l1_regime_csv is not None:
+    if l1_regime_path is not None:
         regime = _load_join_table(
-            path=l1_regime_csv,
+            path=l1_regime_path,
             dataset_label="l1_regime_csv",
             required_columns=L1_REGIME_REQUIRED_COLUMNS,
             optional_columns=L1_REGIME_OPTIONAL_COLUMNS,
             require_rollup_key=False,
             field_types=field_types,
         )
-        _apply_join(
+        join_stats = _apply_join(
             output_rows=output_rows,
             join_table=regime,
             fields=("l1_base_fee_per_gas_wei", "l1_blob_base_fee_wei", "l1_blob_gas_used"),
             join_label="l1 regime join",
         )
-        join_meta["l1_regime_rows"] = len(regime.rows)
-        join_meta["l1_regime_key_mode"] = regime.key_mode
+        join_meta["l1_regime"] = {
+            "path": str(regime.path),
+            "key_mode": regime.key_mode,
+            "input_rows": len(regime.rows),
+            "fields": ["l1_base_fee_per_gas_wei", "l1_blob_base_fee_wei", "l1_blob_gas_used"],
+            "join_type": "left_join_on_(date_utc,rollup_id)_or_date_only",
+            "conflict_policy": "fail_on_nonempty_conflict",
+            **join_stats,
+        }
 
-    if prices_csv is not None:
+    if prices_path is not None:
         prices = _load_join_table(
-            path=prices_csv,
+            path=prices_path,
             dataset_label="prices_csv",
             required_columns=PRICES_REQUIRED_COLUMNS,
             optional_columns=(),
             require_rollup_key=False,
             field_types=field_types,
         )
-        _apply_join(
+        join_stats = _apply_join(
             output_rows=output_rows,
             join_table=prices,
             fields=("eth_usd_close",),
             join_label="prices join",
         )
-        join_meta["prices_rows"] = len(prices.rows)
-        join_meta["prices_key_mode"] = prices.key_mode
+        join_meta["prices"] = {
+            "path": str(prices.path),
+            "key_mode": prices.key_mode,
+            "input_rows": len(prices.rows),
+            "fields": ["eth_usd_close"],
+            "join_type": "left_join_on_(date_utc,rollup_id)_or_date_only",
+            "conflict_policy": "fail_on_nonempty_conflict",
+            **join_stats,
+        }
 
-    if issuance_csv is not None:
+    if issuance_path is not None:
         issuance = _load_join_table(
-            path=issuance_csv,
+            path=issuance_path,
             dataset_label="issuance_csv",
             required_columns=ISSUANCE_REQUIRED_COLUMNS,
             optional_columns=(),
             require_rollup_key=False,
             field_types=field_types,
         )
-        _apply_join(
+        join_stats = _apply_join(
             output_rows=output_rows,
             join_table=issuance,
             fields=("issuance_eth",),
             join_label="issuance join",
         )
-        join_meta["issuance_rows"] = len(issuance.rows)
-        join_meta["issuance_key_mode"] = issuance.key_mode
+        join_meta["issuance"] = {
+            "path": str(issuance.path),
+            "key_mode": issuance.key_mode,
+            "input_rows": len(issuance.rows),
+            "fields": ["issuance_eth"],
+            "join_type": "left_join_on_(date_utc,rollup_id)_or_date_only",
+            "conflict_policy": "fail_on_nonempty_conflict",
+            **join_stats,
+        }
 
-    sorted_rows = [output_rows[k] for k in sorted(output_rows.keys())]
+    sorted_rows = list(output_rows.values())
     _validate_output_rows(
         rows=sorted_rows,
         field_names=field_names,
         field_types=field_types,
         field_nullable=field_nullable,
     )
-    _write_csv(out_csv, field_names=field_names, rows=sorted_rows)
+    output_format = _write_output_table(out_path, field_names=field_names, rows=sorted_rows)
+    if sample_out_csv is not None:
+        _write_csv(sample_out_csv, field_names=field_names, rows=sorted_rows)
+
+    output_dates = sorted({row["date_utc"] for row in sorted_rows})
+    output_rollups = sorted({row["rollup_id"] for row in sorted_rows})
 
     return {
         "ok": True,
-        "out_csv": str(out_csv),
+        "out_path": str(out_path),
+        "sample_out_csv": (str(sample_out_csv) if sample_out_csv is not None else None),
         "row_count": len(sorted_rows),
+        "date_range_utc": {
+            "start": (output_dates[0] if output_dates else None),
+            "end": (output_dates[-1] if output_dates else None),
+        },
+        "rollup_count": len(output_rollups),
+        "rollups": output_rollups,
         "joins": join_meta,
         "schema_contract": {
             "schema_path": str(schema_path),
             "field_count": len(field_names),
             "required_field_count": len([f for f in field_names if not field_nullable[f]]),
         },
+        "output_format": output_format,
     }
 
 
@@ -605,63 +866,139 @@ def main(argv: list[str]) -> None:
 
     parser = argparse.ArgumentParser(prog="panel_build_daily_rollup_panel_v2.py")
     parser.add_argument("--sample", action="store_true", help="Use committed sample assets for deterministic sample mode.")
-    parser.add_argument("--schema", default="contracts/schemas/panel_schema_str_v2.yaml", help="Path to v2 schema YAML.")
+    parser.add_argument("--write-sample", action="store_true", help="In --sample mode, also write the tracked golden sample CSV.")
+    parser.add_argument("--sample-out", dest="sample_out_csv", default=None, help="Optional path for tracked sample output (used with --sample --write-sample).")
+    parser.add_argument("--schema", default=str(DEFAULT_SCHEMA_PATH), help="Path to v2 schema YAML.")
     parser.add_argument(
         "--panel-v1-csv",
         default=None,
-        help="Base v1 panel CSV (required fields: date_utc, rollup_id, l2_fees_eth, rent_paid_eth).",
+        help="Base v1 panel input (CSV or parquet path; requires date_utc, rollup_id, l2_fees_eth, rent_paid_eth).",
     )
-    parser.add_argument("--decomposition-csv", default=None, help="Optional decomposition CSV keyed by date_utc, rollup_id.")
+    parser.add_argument("--decomposition-csv", default=None, help="Optional decomposition input keyed by date_utc, rollup_id.")
     parser.add_argument(
         "--l1-regime-csv",
         default=None,
-        help="Optional L1 regime CSV keyed by date_utc or date_utc, rollup_id (must include l1_base_fee_per_gas_wei).",
+        help="Optional L1 regime input keyed by date_utc or date_utc, rollup_id (must include l1_base_fee_per_gas_wei).",
     )
-    parser.add_argument("--prices-csv", default=None, help="Optional prices CSV keyed by date_utc (or date_utc, rollup_id).")
-    parser.add_argument("--issuance-csv", default=None, help="Optional issuance CSV keyed by date_utc (or date_utc, rollup_id).")
+    parser.add_argument("--prices-csv", default=None, help="Optional prices input keyed by date_utc (or date_utc, rollup_id).")
+    parser.add_argument("--issuance-csv", default=None, help="Optional issuance input keyed by date_utc (or date_utc, rollup_id).")
     parser.add_argument("--registry-version", default=None, help="Optional value for registry_version output field.")
-    parser.add_argument("--out", dest="out_csv", default=None, help="Output CSV path.")
+    parser.add_argument("--out", dest="out_path", default=None, help="Output dataset path (CSV payload; .parquet supported as filename).")
+    parser.add_argument("--write-manifest", action="store_true", help="Write processed manifest via scripts/make_processed_manifest.py.")
+    parser.add_argument("--as-of", default=None, help="Manifest as-of UTC date (YYYY-MM-DD; required with --write-manifest).")
+    parser.add_argument("--manifest-name", default=None, help="Optional processed manifest name prefix.")
+    parser.add_argument("--manifest-out", default=None, help="Optional output path for processed manifest JSON.")
+    parser.add_argument("--manifest-inputs", nargs="*", default=[], help="Additional manifest input paths to include.")
     args = parser.parse_args(argv[1:])
 
-    schema_path = Path(args.schema)
-    if not schema_path.is_absolute():
-        schema_path = root / schema_path
+    if args.write_sample and not args.sample:
+        raise SystemExit("--write-sample requires --sample")
+    if args.sample_out_csv is not None and not args.write_sample:
+        raise SystemExit("--sample-out requires --write-sample")
+
+    schema_path = _abs_if_not_none(root, Path(args.schema)) or Path(args.schema)
 
     if args.sample:
-        panel_v1_csv = Path(args.panel_v1_csv) if args.panel_v1_csv else (root / "data/samples/panels/daily_rollup_panel_v1_sample.csv")
-        sample_enrichment = root / "data/samples/panels/daily_rollup_panel_v2_sample.csv"
-        decomposition_csv = Path(args.decomposition_csv) if args.decomposition_csv else sample_enrichment
-        l1_regime_csv = Path(args.l1_regime_csv) if args.l1_regime_csv else sample_enrichment
-        prices_csv = Path(args.prices_csv) if args.prices_csv else sample_enrichment
-        issuance_csv = Path(args.issuance_csv) if args.issuance_csv else sample_enrichment
-        out_csv = Path(args.out_csv) if args.out_csv else (root / "data/processed/panels/daily_rollup_panel_v2_sample.csv")
+        panel_v1_path = Path(args.panel_v1_csv) if args.panel_v1_csv else DEFAULT_SAMPLE_PANEL_V2
+        sample_enrichment = root / DEFAULT_SAMPLE_PANEL_V2
+        decomposition_path = Path(args.decomposition_csv) if args.decomposition_csv else sample_enrichment
+        l1_regime_path = Path(args.l1_regime_csv) if args.l1_regime_csv else sample_enrichment
+        prices_path = Path(args.prices_csv) if args.prices_csv else sample_enrichment
+        issuance_path = Path(args.issuance_csv) if args.issuance_csv else sample_enrichment
+        out_path = Path(args.out_path) if args.out_path else DEFAULT_SAMPLE_OUTPUT
+        sample_out_csv = (
+            Path(args.sample_out_csv) if args.sample_out_csv is not None else DEFAULT_SAMPLE_PANEL_V2
+        ) if args.write_sample else None
     else:
-        panel_v1_csv = (
-            Path(args.panel_v1_csv)
-            if args.panel_v1_csv
-            else (root / "data/processed/panels/daily_rollup_panel_v1.csv")
+        panel_v1_path = Path(args.panel_v1_csv) if args.panel_v1_csv else _first_existing(root, PANEL_V1_FULL_CANDIDATES)
+        decomposition_path = (
+            Path(args.decomposition_csv) if args.decomposition_csv else _first_existing_or_none(root, DECOMPOSITION_FULL_CANDIDATES)
         )
-        decomposition_csv = Path(args.decomposition_csv) if args.decomposition_csv else None
-        l1_regime_csv = Path(args.l1_regime_csv) if args.l1_regime_csv else None
-        prices_csv = Path(args.prices_csv) if args.prices_csv else None
-        issuance_csv = Path(args.issuance_csv) if args.issuance_csv else None
-        out_csv = Path(args.out_csv) if args.out_csv else (root / "data/processed/panels/daily_rollup_panel_v2.csv")
+        l1_regime_path = (
+            Path(args.l1_regime_csv) if args.l1_regime_csv else _first_existing_or_none(root, L1_REGIME_FULL_CANDIDATES)
+        )
+        prices_path = (
+            Path(args.prices_csv) if args.prices_csv else _first_existing_or_none(root, PRICES_FULL_CANDIDATES)
+        )
+        issuance_path = (
+            Path(args.issuance_csv) if args.issuance_csv else _first_existing_or_none(root, ISSUANCE_FULL_CANDIDATES)
+        )
+        out_path = Path(args.out_path) if args.out_path else DEFAULT_FULL_OUTPUT
+        sample_out_csv = None
 
-    def _abs_if_not_none(p: Path | None) -> Path | None:
-        if p is None:
-            return None
-        return p if p.is_absolute() else (root / p)
+    panel_v1_abs = _abs_if_not_none(root, panel_v1_path) or panel_v1_path
+    out_abs = _abs_if_not_none(root, out_path) or out_path
+    sample_out_abs = _abs_if_not_none(root, sample_out_csv)
+    decomposition_abs = _abs_if_not_none(root, decomposition_path)
+    l1_regime_abs = _abs_if_not_none(root, l1_regime_path)
+    prices_abs = _abs_if_not_none(root, prices_path)
+    issuance_abs = _abs_if_not_none(root, issuance_path)
 
     result = build_panel_v2(
-        panel_v1_csv=_abs_if_not_none(panel_v1_csv) or panel_v1_csv,
-        schema_path=_abs_if_not_none(schema_path) or schema_path,
-        out_csv=_abs_if_not_none(out_csv) or out_csv,
-        decomposition_csv=_abs_if_not_none(decomposition_csv),
-        l1_regime_csv=_abs_if_not_none(l1_regime_csv),
-        prices_csv=_abs_if_not_none(prices_csv),
-        issuance_csv=_abs_if_not_none(issuance_csv),
+        panel_v1_path=panel_v1_abs,
+        schema_path=schema_path,
+        out_path=out_abs,
+        sample_out_csv=sample_out_abs,
+        decomposition_path=decomposition_abs,
+        l1_regime_path=l1_regime_abs,
+        prices_path=prices_abs,
+        issuance_path=issuance_abs,
         registry_version=args.registry_version,
     )
+
+    if args.write_manifest:
+        if args.as_of is None:
+            raise SystemExit("Missing --as-of (required with --write-manifest)")
+        as_of = _parse_date(args.as_of, label="as_of")
+        manifest_name = args.manifest_name or _manifest_default_name(sample=args.sample)
+        manifest_out = _abs_if_not_none(root, Path(args.manifest_out)) if args.manifest_out else None
+
+        manifest_inputs: list[Path] = [schema_path, panel_v1_abs]
+        for p in (decomposition_abs, l1_regime_abs, prices_abs, issuance_abs):
+            if p is not None:
+                manifest_inputs.append(p)
+        for extra in args.manifest_inputs:
+            p = Path(extra)
+            manifest_inputs.append(_abs_if_not_none(root, p) or p)
+
+        manifest_outputs: list[Path] = [out_abs]
+        if sample_out_abs is not None:
+            manifest_outputs.append(sample_out_abs)
+
+        meta: dict[str, object] = {
+            "panel_schema_version": 2,
+            "schema_path": str(_ensure_within_repo(root, schema_path.resolve())),
+            "schema_sha256": _sha256_file(schema_path.resolve()),
+            "contract_assertions": result["schema_contract"],
+            "join_semantics": {
+                "base_grain": ["date_utc", "rollup_id"],
+                "enrichment_rule": "left-join enrichment inputs onto base panel",
+                "key_modes": {
+                    "date_rollup": "(date_utc, rollup_id)",
+                    "date": "date_utc duplicated across rollups",
+                },
+                "conflict_policy": "fail on conflicting non-empty values",
+                "missingness_policy": "blank enrichment values never overwrite existing non-empty values",
+            },
+            "joins": result["joins"],
+            "counts": {
+                "row_count": result["row_count"],
+                "rollup_count": result["rollup_count"],
+                "date_range_utc": result["date_range_utc"],
+            },
+            "sample_mode": bool(args.sample),
+            "output_format": result["output_format"],
+        }
+        manifest_path = _write_processed_manifest(
+            name=manifest_name,
+            as_of=as_of,
+            manifest_out=manifest_out,
+            manifest_inputs=manifest_inputs,
+            outputs=manifest_outputs,
+            meta=meta,
+        )
+        result["manifest_path"] = str(manifest_path)
+
     print(json.dumps(result, indent=2, sort_keys=True))
 
 
