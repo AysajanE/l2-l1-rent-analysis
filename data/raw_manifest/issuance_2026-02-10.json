@@ -1,0 +1,38 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "command": "python src/etl/issuance_fetch.py --run-date 2026-02-10 --input-csv data/samples/issuance/issuance_daily_sample.csv --write-raw-manifest --write-processed-manifest --write-sample",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "fetched_at_utc": "2026-02-10T00:49:43.055197+00:00",
+  "files": [
+    {
+      "bytes": 4364,
+      "path": "data/raw/issuance/2026-02-10/input_issuance_daily.csv",
+      "sha256": "180eeca48808446b86cbfff001ce6db67b239222ffac29f419024af461519e25"
+    },
+    {
+      "bytes": 1329,
+      "path": "data/raw/issuance/2026-02-10/snapshot_fetch_meta.json",
+      "sha256": "5bfc467bb12598ba57a6ac4e75cd9a8022f34484226fc53fcfdf4357e1c1a230"
+    },
+    {
+      "bytes": 3456,
+      "path": "data/raw/issuance/2026-02-10/ultrasound_gauge_rates.json",
+      "sha256": "89014ffc07424140d5bc86f5bde2cb641b9d22ecbdb542fb30a5ec354a0d3b02"
+    },
+    {
+      "bytes": 109,
+      "path": "data/raw/issuance/2026-02-10/ultrasound_issuance_estimate.json",
+      "sha256": "97d1fb2a011e683ab89c8f99abad5826ef18b4a1f9fc63b9ccdaec9f94d38ad0"
+    },
+    {
+      "bytes": 559562,
+      "path": "data/raw/issuance/2026-02-10/ultrasound_supply_over_time.json",
+      "sha256": "276880cd5ff35e878b48088b99714161d87770928feee5a0fa90425a8419e584"
+    }
+  ],
+  "source": "issuance"
+}

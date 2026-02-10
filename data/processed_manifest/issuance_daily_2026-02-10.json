@@ -1,0 +1,81 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "created_at_utc": "2026-02-10T00:49:43.102499+00:00",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "inputs": [
+    {
+      "bytes": 880,
+      "path": "contracts/schemas/issuance_daily_v1.yaml",
+      "sha256": "d5b8f2a068e0baafa82ac41433b858841ab9d8a08aff6df367ae5d49d114ce20"
+    },
+    {
+      "bytes": 4364,
+      "path": "data/raw/issuance/2026-02-10/input_issuance_daily.csv",
+      "sha256": "180eeca48808446b86cbfff001ce6db67b239222ffac29f419024af461519e25"
+    },
+    {
+      "bytes": 1450,
+      "path": "data/raw_manifest/issuance_2026-02-10.json",
+      "sha256": "1e32104078a2b3390808d4d831496b08a165b2a5a9b841cda152267ea983f23d"
+    }
+  ],
+  "meta": {
+    "contract_schema": "contracts/schemas/issuance_daily_v1.yaml",
+    "date_window_utc": {
+      "end": "2026-02-10",
+      "start": "2022-01-01"
+    },
+    "method_values": [
+      "deterministic_sample_v1"
+    ],
+    "rows_emitted": 71,
+    "sample_rows_emitted": 71,
+    "sample_window_utc": {
+      "end": "2024-04-30",
+      "start": "2024-02-20"
+    },
+    "snapshot": {
+      "files_failed": {
+        "supply_dashboard_analysis": "fetch failed for https://ultrasound.money/api/v2/fees/supply-dashboard-analysis: HTTP Error 503: Service Unavailable"
+      },
+      "files_reused": [],
+      "files_written": [
+        "data/raw/issuance/2026-02-10/ultrasound_supply_over_time.json",
+        "data/raw/issuance/2026-02-10/ultrasound_gauge_rates.json",
+        "data/raw/issuance/2026-02-10/ultrasound_issuance_estimate.json",
+        "data/raw/issuance/2026-02-10/snapshot_fetch_meta.json"
+      ],
+      "snapshot_dir": "data/raw/issuance/2026-02-10"
+    },
+    "source_policy": {
+      "primary": "ultrasound_money",
+      "proxy_mode_enabled": false
+    },
+    "source_values": [
+      "ultrasound_money"
+    ]
+  },
+  "name": "issuance_daily",
+  "outputs": [
+    {
+      "bytes": 1936,
+      "path": "data/processed/issuance/issuance_daily.parquet",
+      "sha256": "9359b46d2f90a86994aa06a16bedcc6e5cde7df83134dd6232d317f11f380c84"
+    },
+    {
+      "bytes": 4364,
+      "path": "data/samples/issuance/issuance_daily_sample.csv",
+      "sha256": "180eeca48808446b86cbfff001ce6db67b239222ffac29f419024af461519e25"
+    }
+  ],
+  "schema_version": 1,
+  "transform": {
+    "command": "python src/etl/issuance_fetch.py --run-date 2026-02-10 --input-csv data/samples/issuance/issuance_daily_sample.csv --write-raw-manifest --write-processed-manifest --write-sample",
+    "git_sha": null,
+    "script_path": "scripts/make_processed_manifest.py"
+  }
+}
