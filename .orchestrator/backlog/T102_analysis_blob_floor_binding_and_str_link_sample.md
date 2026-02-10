@@ -72,11 +72,12 @@ This task produces deterministic sample-mode outputs that:
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-05: Task created (Planner) to close the “blob fee at-minimum fraction + linkage to STR” completeness gap with deterministic sample artifacts.
 
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T102_analysis_blob_floor_binding_and_str_link_sample).
