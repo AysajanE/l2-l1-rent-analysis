@@ -89,10 +89,11 @@ It is intentionally scoped to txs+receipts only, with explicit join keys, and de
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-04: Split out from the original monolithic T087 to isolate tx/receipt schema and blob-field availability issues.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T087C_onchain_etl_extract_l1_txs_and_receipts_blob_fields).
