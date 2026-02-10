@@ -89,10 +89,38 @@ It is intentionally scoped to txs+receipts only, with explicit join keys, and de
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: done
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-04: Split out from the original monolithic T087 to isolate tx/receipt schema and blob-field availability issues.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T087C_onchain_etl_extract_l1_txs_and_receipts_blob_fields).
+
+- 2026-02-10: Worker execution completed with tiny canonical-window extraction and schema/sample assertions.
+  - Files changed:
+    - `src/etl/l1_extract_txs_receipts.py`
+    - `data/raw_manifest/l1_txs_receipts_2026-02-10.json`
+    - `data/processed_manifest/l1_txs_receipts_2026-02-10.json`
+    - `data/samples/l1/l1_txs_receipts_sample.csv`
+  - Reproduction commands:
+    - `make preflight-onchain`
+    - `python src/etl/l1_extract_txs_receipts.py --as-of 2026-02-10 --from-block 19557289 --to-block 19557340 --chunk-size 100 --write-manifest`
+    - `make gate`
+    - `make test`
+  - Output summary:
+    - Raw snapshots (append-only): `data/raw/l1/2026-02-10/txs/txs_19557289_19557340.jsonl`, `data/raw/l1/2026-02-10/receipts/receipts_19557289_19557340.jsonl`
+    - Processed outputs (CSV payload at parquet paths): `data/processed/l1/l1_txs.parquet`, `data/processed/l1/l1_receipts.parquet`
+    - Golden sample: `data/samples/l1/l1_txs_receipts_sample.csv` (11 rows selected; 5 type-3 rows; all 5 with computable `burn_blob_wei`)
+  - Gate/test results:
+    - `make preflight-onchain`: pass
+    - `make gate`: pass
+    - `make test`: pass (`Ran 42 tests`, `OK`)
+  - Assumptions / limitations:
+    - Extraction range is sparse and intentionally tiny (April 2024 canonical-window slice around blocks `19557289..19557340`).
+    - Processed files use CSV payload with `.parquet` filenames for stdlib portability.
+    - Sandbox git worktree metadata is unavailable; processed manifest records `transform.git_sha = null`.
+
+
+- 2026-02-10: Judge: gates ok; ownership ok. Review log: /tmp/swarm-worktrees/wt-T087C/data/tmp/swarm_logs/T087C_20260210T105535Z_judge_review.txt

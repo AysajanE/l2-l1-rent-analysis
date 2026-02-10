@@ -1,0 +1,127 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "created_at_utc": "2026-02-10T10:54:09.478264+00:00",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "inputs": [
+    {
+      "bytes": 846,
+      "path": "data/raw_manifest/l1_txs_receipts_2026-02-10.json",
+      "sha256": "364356c155e3b149161efe6ff74dff5ea729a825a90edd36c35607157b4a2e8f"
+    }
+  ],
+  "meta": {
+    "filtering": {
+      "filter_from_registry": true,
+      "registry_path": "registry/rollup_registry_v1.csv"
+    },
+    "output_format": {
+      "note": "CSV payload written to .parquet filename for stdlib-only portability (no parquet dependency).",
+      "receipts_path": "data/processed/l1/l1_receipts.parquet",
+      "txs_path": "data/processed/l1/l1_txs.parquet"
+    },
+    "processed_counts": {
+      "receipt_blob_rows": 8,
+      "receipt_blob_rows_with_blob_fields": 8,
+      "receipt_rows": 14,
+      "tx_blob_rows": 8,
+      "tx_rows": 14
+    },
+    "range": {
+      "end_block": 19557340,
+      "latest_block": 24425902,
+      "start_block": 19557289
+    },
+    "raw_counts": {
+      "blocks_scanned": 52,
+      "chunks_skipped": 0,
+      "chunks_total": 1,
+      "chunks_written": 1,
+      "receipts_fetched": 14,
+      "txs_selected": 14
+    },
+    "required_fields": {
+      "receipts": [
+        "tx_hash",
+        "block_number",
+        "tx_index",
+        "gas_used",
+        "effective_gas_price_wei",
+        "status",
+        "blobGasUsed",
+        "blobGasPrice"
+      ],
+      "txs": [
+        "tx_hash",
+        "block_number",
+        "tx_index",
+        "from_address",
+        "tx_type",
+        "blobVersionedHashes_count"
+      ]
+    },
+    "sample": {
+      "counts": {
+        "blob_rows_selected": 5,
+        "blob_rows_with_computable_burn_selected": 5,
+        "rows_joined": 14,
+        "rows_selected": 11
+      },
+      "max_rows": 40,
+      "path": "data/samples/l1/l1_txs_receipts_sample.csv",
+      "window_end_utc": "2024-04-30",
+      "window_start_utc": "2024-02-20"
+    },
+    "schema_assertions": {
+      "required_join_keys": [
+        "tx_hash",
+        "block_number",
+        "tx_index"
+      ],
+      "required_receipt_fields": [
+        "gas_used",
+        "effective_gas_price_wei",
+        "blobGasUsed",
+        "blobGasPrice"
+      ],
+      "required_tx_fields": [
+        "tx_type",
+        "blobVersionedHashes_count"
+      ],
+      "validated_counts": {
+        "receipt_blob_rows": 8,
+        "receipt_blob_rows_with_blob_fields": 8,
+        "receipt_rows": 14,
+        "tx_blob_rows": 8,
+        "tx_rows": 14
+      }
+    }
+  },
+  "name": "l1_txs_receipts",
+  "outputs": [
+    {
+      "bytes": 2927,
+      "path": "data/processed/l1/l1_receipts.parquet",
+      "sha256": "d5db16ae808bd6950b758ddbcea771ad2215de7cbea670305ca71b2fee3d93b1"
+    },
+    {
+      "bytes": 2945,
+      "path": "data/processed/l1/l1_txs.parquet",
+      "sha256": "3fd42dea5151b0a946846de161b74d7071110d64ec8f1e61cce791082d08ac6e"
+    },
+    {
+      "bytes": 2899,
+      "path": "data/samples/l1/l1_txs_receipts_sample.csv",
+      "sha256": "6818489f45e545062977886da8713d56cab8959fc854238ec2a587f048c39aa6"
+    }
+  ],
+  "schema_version": 1,
+  "transform": {
+    "command": "python src/etl/l1_extract_txs_receipts.py --as-of 2026-02-10 --from-block 19557289 --to-block 19557340 --chunk-size 100 --write-manifest",
+    "git_sha": null,
+    "script_path": "scripts/make_processed_manifest.py"
+  }
+}
