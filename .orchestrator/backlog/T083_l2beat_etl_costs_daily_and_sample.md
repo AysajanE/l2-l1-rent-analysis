@@ -86,10 +86,11 @@ This task depends on T081 so the registry can provide a deterministic `l2beat_sl
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to enable cross-source rent triangulation at scale.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T083_l2beat_etl_costs_daily_and_sample).
