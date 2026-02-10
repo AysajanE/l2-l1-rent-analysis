@@ -71,7 +71,7 @@ and any other enrichment explicitly defined in the v2 contract.
 - [ ] `make gate` passes
 
 ## Status
-- State: blocked
+- State: done
 - Last updated: 2026-02-10
 ## Notes / Decisions
 
@@ -107,3 +107,5 @@ and any other enrichment explicitly defined in the v2 contract.
 
 
 - 2026-02-10: @human Judge blocked: path_ownership_violation. Review log: /tmp/swarm-worktrees/wt-T090/data/tmp/swarm_logs/T090_20260210T110224Z_judge_review.txt
+
+- 2026-02-10: Unblocked after merge of PR #45 (`29b9dc6339d13ff407b48a74465f0b3c6d0675d0`) on `main`; scheduler dependency gate for T101/T102/T103 should treat T090 as completed.
