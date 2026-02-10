@@ -1,0 +1,50 @@
+{
+  "as_of_utc_date": "2026-02-04",
+  "created_at_utc": "2026-02-10T10:37:21.799011+00:00",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "inputs": [
+    {
+      "bytes": 1144,
+      "path": "data/raw_manifest/l1_probe_2026-02-04.json",
+      "sha256": "9796eadfec06b621ec33251ec3be620596f9e4ec2cb9070705bbec318f7c449e"
+    }
+  ],
+  "meta": {
+    "acceptance": {
+      "can_compute_burn_blob_wei": true,
+      "type3_tx_found": true
+    },
+    "derived": {
+      "base_fee_per_blob_gas_source": "receipt.blobGasPrice",
+      "base_fee_per_blob_gas_wei": 3755074,
+      "base_fee_per_blob_gas_wei_from_excessBlobGas": null,
+      "blob_count": 1,
+      "blob_gas_used": 131072,
+      "blob_gas_used_source": "receipt.blobGasUsed",
+      "burn_blob_wei": 492185059328,
+      "derived_blob_gas_used_from_hashes": 131072,
+      "gas_per_blob": 131072
+    },
+    "ok": true,
+    "raw_snapshot_dir": "data/raw/l1/2026-02-04/probe",
+    "report_path": "data/processed/l1/l1_rpc_probe_blob_fields_report.json"
+  },
+  "name": "l1_probe",
+  "outputs": [
+    {
+      "bytes": 1403,
+      "path": "data/processed/l1/l1_rpc_probe_blob_fields_report.json",
+      "sha256": "a3f67dfd3a3e5d458293fe187cd2bb768d09819440ef114ca4fddcd534e7d0d0"
+    }
+  ],
+  "schema_version": 1,
+  "transform": {
+    "command": "python src/etl/l1_rpc_probe_blob_fields.py --as-of 2026-02-04 --scan-latest-blocks 2048 --out data/processed/l1/l1_rpc_probe_blob_fields_report.json --write-manifest",
+    "git_sha": null,
+    "script_path": "scripts/make_processed_manifest.py"
+  }
+}
