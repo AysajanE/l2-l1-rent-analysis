@@ -18,6 +18,8 @@ Example (rebuild processed CSV from an existing snapshot directory, no network):
 import argparse
 import csv
 import json
+import math
+import re
 import subprocess
 import sys
 import tempfile
@@ -60,6 +62,10 @@ SAMPLE_WINDOW_START = date(2024, 2, 20)
 SAMPLE_WINDOW_END = date(2024, 4, 30)
 SAMPLE_ROLLUPS = ("arbitrum", "optimism", "base")
 
+PANEL_SCHEMA_PATH = REPO_ROOT / "contracts" / "schemas" / "panel_schema_str_v1.yaml"
+PANEL_COLUMNS = ("date_utc", "rollup_id", "l2_fees_eth", "rent_paid_eth", "profit_eth", "txcount")
+PANEL_REQUIRED_COLUMNS = ("date_utc", "rollup_id", "l2_fees_eth", "rent_paid_eth")
+
 
 def _repo_root() -> Path:
     return REPO_ROOT
@@ -86,6 +92,88 @@ def _load_json(path: Path) -> Any:
 
 def _write_json_pretty(path: Path, obj: Any) -> None:
     write_text_append_only(path, json.dumps(obj, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _unquote_yaml_scalar(value: str) -> str:
+    v = value.strip()
+    if len(v) >= 2 and ((v[0] == v[-1] == '"') or (v[0] == v[-1] == "'")):
+        return v[1:-1]
+    return v
+
+
+def _load_schema_fields(schema_path: Path) -> tuple[tuple[str, ...], dict[str, bool]]:
+    """Parse the minimal schema shape used by contracts/schemas/panel_schema_str_v1.yaml."""
+    if not schema_path.exists():
+        raise SystemExit(f"schema not found: {schema_path}")
+
+    text = schema_path.read_text(encoding="utf-8")
+    fields: list[str] = []
+    seen: set[str] = set()
+    nullable: dict[str, bool] = {}
+    in_fields = False
+    current_field: str | None = None
+
+    for raw_line in text.splitlines():
+        line = raw_line.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+
+        if not in_fields:
+            if line.strip() == "fields:":
+                in_fields = True
+            continue
+
+        # Stop if we hit a new top-level key.
+        if not line.startswith(" ") and re.match(r"^[A-Za-z0-9_-]+\s*:", line.strip()):
+            break
+
+        m_name = re.match(r"^\s*-\s*name:\s*(.+?)\s*$", line)
+        if m_name:
+            name = _unquote_yaml_scalar(m_name.group(1))
+            if name == "":
+                raise SystemExit(f"schema field name is empty: {schema_path}")
+            if name in seen:
+                raise SystemExit(f"schema has duplicate field name {name!r}: {schema_path}")
+            seen.add(name)
+            fields.append(name)
+            current_field = name
+            continue
+
+        m_nullable = re.match(r"^\s*nullable:\s*(true|false)\s*$", line.strip(), flags=re.IGNORECASE)
+        if m_nullable and current_field is not None:
+            nullable[current_field] = m_nullable.group(1).lower() == "true"
+
+    if not fields:
+        raise SystemExit(f"schema has no fields (expected fields: ...): {schema_path}")
+
+    missing_nullable = [f for f in fields if f not in nullable]
+    if missing_nullable:
+        raise SystemExit(f"schema fields missing `nullable` flag: {missing_nullable} ({schema_path})")
+
+    return tuple(fields), nullable
+
+
+def _assert_panel_contract_v1(*, schema_path: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Fail fast if the locked STR panel schema drifts from ETL output expectations."""
+    schema_fields, schema_nullable = _load_schema_fields(schema_path)
+    if schema_fields != PANEL_COLUMNS:
+        raise SystemExit(
+            "Schema mismatch: growthepie ETL output columns differ from locked STR schema.\n"
+            f"- schema_path: {schema_path}\n"
+            f"- schema_fields: {list(schema_fields)}\n"
+            f"- expected_fields: {list(PANEL_COLUMNS)}\n"
+        )
+
+    required_from_schema = tuple([f for f in schema_fields if not schema_nullable[f]])
+    if required_from_schema != PANEL_REQUIRED_COLUMNS:
+        raise SystemExit(
+            "Schema mismatch: required (non-nullable) fields differ from ETL expectations.\n"
+            f"- schema_path: {schema_path}\n"
+            f"- schema_required_fields: {list(required_from_schema)}\n"
+            f"- expected_required_fields: {list(PANEL_REQUIRED_COLUMNS)}\n"
+        )
+
+    return schema_fields, required_from_schema
 
 
 def _render_command_tokens_for_manifest(root: Path) -> list[str]:
@@ -248,6 +336,11 @@ def _origin_key_to_rollup_id(registry: dict[str, RegistryRow]) -> dict[str, str]
         if row.origin_key is None:
             continue
         key = row.origin_key
+        if key != rid:
+            raise SystemExit(
+                "registry canonical mapping violated for growthepie rows: expected rollup_id == origin_key "
+                f"but saw rollup_id={rid!r}, origin_key={key!r}"
+            )
         if key in mapping and mapping[key] != rid:
             raise SystemExit(f"registry has ambiguous origin_key mapping: {key!r} maps to {mapping[key]!r} and {rid!r}")
         mapping[key] = rid
@@ -324,10 +417,57 @@ def _load_export_rows(path: Path) -> list[dict[str, object]]:
 
 def _coerce_float(value: object, *, label: str) -> float:
     if isinstance(value, (int, float)):
-        return float(value)
+        out = float(value)
+        if not math.isfinite(out):
+            raise SystemExit(f"Non-finite numeric value for {label}: {value!r}")
+        return out
     if isinstance(value, str):
-        return float(value)
+        out = float(value)
+        if not math.isfinite(out):
+            raise SystemExit(f"Non-finite numeric value for {label}: {value!r}")
+        return out
     raise SystemExit(f"Invalid numeric value for {label}: {value!r}")
+
+
+def _assert_panel_rows(
+    *,
+    rows: list[dict[str, str]],
+    schema_fields: tuple[str, ...],
+    schema_required_fields: tuple[str, ...],
+) -> None:
+    expected_keys = set(schema_fields)
+
+    for i, row in enumerate(rows):
+        row_keys = set(row.keys())
+        if row_keys != expected_keys:
+            missing = sorted(expected_keys - row_keys)
+            extra = sorted(row_keys - expected_keys)
+            raise SystemExit(f"row[{i}] column mismatch: missing={missing} extra={extra}")
+
+        for field in schema_required_fields:
+            if (row.get(field) or "") == "":
+                raise SystemExit(f"row[{i}] missing required field: {field}")
+
+        _parse_date(row["date_utc"], label=f"row[{i}].date_utc")
+        if row["rollup_id"].strip() == "":
+            raise SystemExit(f"row[{i}] has empty rollup_id")
+
+        for field in ["l2_fees_eth", "rent_paid_eth", "profit_eth"]:
+            raw = (row.get(field) or "").strip()
+            if raw == "":
+                continue
+            val = _coerce_float(raw, label=f"row[{i}].{field}")
+            if field in {"l2_fees_eth", "rent_paid_eth"} and val < 0:
+                raise SystemExit(f"row[{i}] has negative value for {field}: {val}")
+
+        tx_raw = (row.get("txcount") or "").strip()
+        if tx_raw != "":
+            try:
+                tx = int(tx_raw)
+            except ValueError as exc:
+                raise SystemExit(f"row[{i}] txcount is not an integer: {tx_raw!r}") from exc
+            if tx < 0:
+                raise SystemExit(f"row[{i}] has negative txcount: {tx}")
 
 
 def build_vendor_panel(
@@ -356,9 +496,16 @@ def build_vendor_panel(
     counts = {
         "input_rows_total": 0,
         "rows_emitted": 0,
+        "rows_filtered_missing_core_fields": 0,
         "rows_filtered_out_of_registry": 0,
         "rows_filtered_out_of_scope": 0,
         "rows_filtered_outside_window": 0,
+    }
+    metric_rows_selected = {
+        "l2_fees_eth": 0,
+        "rent_paid_eth": 0,
+        "profit_eth": 0,
+        "txcount": 0,
     }
 
     def _upsert(metric_alias: str, row: dict[str, object]) -> None:
@@ -412,6 +559,7 @@ def build_vendor_panel(
         counts["input_rows_total"] += 1
         if row.get("metric_key") != METRIC_KEY_MAP["l2_fees_eth"]:
             continue
+        metric_rows_selected["l2_fees_eth"] += 1
         _upsert("l2_fees_eth", row)
 
     # rent_paid (vendor; secondary)
@@ -419,6 +567,7 @@ def build_vendor_panel(
         counts["input_rows_total"] += 1
         if row.get("metric_key") != METRIC_KEY_MAP["rent_paid_eth_vendor"]:
             continue
+        metric_rows_selected["rent_paid_eth"] += 1
         _upsert("rent_paid_eth", row)
 
     # profit
@@ -426,6 +575,7 @@ def build_vendor_panel(
         counts["input_rows_total"] += 1
         if row.get("metric_key") != METRIC_KEY_MAP["profit_eth"]:
             continue
+        metric_rows_selected["profit_eth"] += 1
         _upsert("profit_eth", row)
 
     # txcount (single)
@@ -433,10 +583,27 @@ def build_vendor_panel(
         counts["input_rows_total"] += 1
         if row.get("metric_key") != METRIC_KEY_MAP["txcount"]:
             continue
+        metric_rows_selected["txcount"] += 1
         _upsert("txcount", row)
 
-    rows = list(buckets.values())
-    rows.sort(key=lambda r: (r["date_utc"], r["rollup_id"]))
+    missing_metric_keys = [metric for metric, hit_count in metric_rows_selected.items() if hit_count == 0]
+    if missing_metric_keys:
+        raise SystemExit(
+            "Missing required growthepie metric rows in snapshot "
+            f"(possible source instability / metric key drift): {missing_metric_keys}"
+        )
+    for metric, hit_count in metric_rows_selected.items():
+        counts[f"metric_rows_selected_{metric}"] = hit_count
+
+    rows_all = list(buckets.values())
+    rows_all.sort(key=lambda r: (r["date_utc"], r["rollup_id"]))
+    rows: list[dict[str, str]] = []
+    for row in rows_all:
+        if row["l2_fees_eth"] == "" or row["rent_paid_eth"] == "":
+            counts["rows_filtered_missing_core_fields"] += 1
+            continue
+        rows.append(row)
+
     counts["rows_emitted"] = len(rows)
     return rows, counts
 
@@ -446,7 +613,7 @@ def _write_vendor_panel_csv(path: Path, rows: list[dict[str, str]]) -> None:
     with path.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(
             f,
-            fieldnames=["date_utc", "rollup_id", "l2_fees_eth", "rent_paid_eth", "profit_eth", "txcount"],
+            fieldnames=list(PANEL_COLUMNS),
             lineterminator="\n",
         )
         w.writeheader()
@@ -461,7 +628,7 @@ def _write_sample_csv_append_only(path: Path, rows: list[dict[str, str]]) -> Non
     with path.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(
             f,
-            fieldnames=["date_utc", "rollup_id", "l2_fees_eth", "rent_paid_eth", "profit_eth", "txcount"],
+            fieldnames=list(PANEL_COLUMNS),
             lineterminator="\n",
         )
         w.writeheader()
@@ -498,6 +665,7 @@ def cmd_run(
     write_processed_manifest: bool,
 ) -> int:
     root = _repo_root()
+    schema_fields, schema_required_fields = _assert_panel_contract_v1(schema_path=PANEL_SCHEMA_PATH)
 
     if (run_date is None) == (from_snapshot is None):
         raise SystemExit("Provide exactly one of --run-date (fetch) or --from-snapshot (offline rebuild).")
@@ -524,9 +692,11 @@ def cmd_run(
 
     export_paths = _resolve_export_paths(snapshot_dir)
     rows, counts = build_vendor_panel(registry=registry, export_paths=export_paths, start_date=start_date, end_date=end_date)
+    _assert_panel_rows(rows=rows, schema_fields=schema_fields, schema_required_fields=schema_required_fields)
     _write_vendor_panel_csv(out_processed_csv, rows)
 
     sample_rows = _filter_rows_for_sample(rows)
+    _assert_panel_rows(rows=sample_rows, schema_fields=schema_fields, schema_required_fields=schema_required_fields)
     if write_sample:
         _write_sample_csv_append_only(sample_out, sample_rows)
 
@@ -543,6 +713,9 @@ def cmd_run(
             "source": "growthepie",
             "endpoints": {"master": MASTER_URL, "exports": EXPORT_ENDPOINTS},
             "metric_key_map": METRIC_KEY_MAP,
+            "panel_schema_path": str(PANEL_SCHEMA_PATH.relative_to(root)),
+            "panel_schema_fields": list(schema_fields),
+            "panel_schema_required_fields": list(schema_required_fields),
             "date_range_utc": {"start": start_date.isoformat(), "end": end_date.isoformat()},
             "sample_window_utc": {"start": SAMPLE_WINDOW_START.isoformat(), "end": SAMPLE_WINDOW_END.isoformat()},
             "sample_rollups": list(SAMPLE_ROLLUPS),
