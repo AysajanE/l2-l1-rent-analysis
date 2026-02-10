@@ -75,11 +75,12 @@ This task implements deterministic validation scripts and emits both machine-rea
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to enforce “anti-dashboard-science” cross-source reconciliation before analysis.
 - 2026-02-05: Added explicit dependency on T087B so Blobscan vs on-chain `blobGasUsed` checks can be run deterministically (block-header aggregates).
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T091_validation_cross_source_reconciliation_suite).
