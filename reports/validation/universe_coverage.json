@@ -1,0 +1,684 @@
+{
+  "failures": [],
+  "inputs": [
+    {
+      "exists": true,
+      "name": "registry",
+      "path": "registry/rollup_registry_v1.csv",
+      "required": true
+    },
+    {
+      "exists": true,
+      "name": "rollup_costs_daily",
+      "path": "data/samples/l1/rollup_costs_daily_sample.csv",
+      "required": true
+    },
+    {
+      "exists": true,
+      "name": "rollup_blob_usage",
+      "path": "data/samples/panels/daily_rollup_panel_v2_sample.csv",
+      "required": true
+    },
+    {
+      "exists": true,
+      "name": "l1_blob_baseline",
+      "path": "data/samples/panels/daily_rollup_panel_v2_sample.csv",
+      "required": true
+    },
+    {
+      "exists": true,
+      "name": "blobscan_optional",
+      "path": "data/samples/blobscan/blobscan_daily_sample.csv",
+      "required": false
+    }
+  ],
+  "metrics": {
+    "attribution": {
+      "aggregate": {
+        "dates_missing_rollup_blob_usage": 0,
+        "dates_with_l1_blob_baseline": 49,
+        "dates_with_rollup_blob_usage": 49,
+        "rollup_to_l1_blob_fee_burn_ratio": 1.0,
+        "rollup_to_l1_blob_gas_ratio": 1.0,
+        "sum_l1_blob_fee_burn_proxy_eth": 349.175808,
+        "sum_l1_blob_gas_used": 115605504000,
+        "sum_rollup_blob_fee_burn_eth": 349.175808,
+        "sum_rollup_blob_gas_used": 115605504000
+      },
+      "blobscan_triangulation": {
+        "blobscan_to_l1_baseline_ratio": 0.63302662037,
+        "days_overlap": 48,
+        "source": "data/samples/blobscan/blobscan_daily_sample.csv",
+        "sum_blobscan_l1_blob_gas_used": 71687864320,
+        "sum_l1_baseline_blob_gas_used": 113246208000
+      },
+      "daily_blob_fee_burn_coverage": [
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-13",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-14",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-15",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-16",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-17",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-18",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-19",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-20",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-21",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-22",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-23",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-24",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-25",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-26",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-27",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-28",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-29",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-30",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-31",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-01",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-02",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-03",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-04",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-05",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-06",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-07",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-08",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-09",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-10",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-11",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-12",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-13",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-14",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-15",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-16",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-17",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-18",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-19",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-20",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-21",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-22",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-23",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-24",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-25",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-26",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-27",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-28",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-29",
+          "l1_blob_fee_burn_proxy_eth": 9.437184,
+          "sum_rollup_blob_fee_burn_eth": 9.437184
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-30",
+          "l1_blob_fee_burn_proxy_eth": 4.718592,
+          "sum_rollup_blob_fee_burn_eth": 4.718592
+        }
+      ],
+      "daily_blob_gas_coverage": [
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-13",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-14",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-15",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-16",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-17",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-18",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-19",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-20",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-21",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-22",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-23",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-24",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-25",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-26",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-27",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-28",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-29",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-30",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-03-31",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-01",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-02",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-03",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-04",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-05",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-06",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-07",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-08",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-09",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-10",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-11",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-12",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-13",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-14",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-15",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-16",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-17",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-18",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-19",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-20",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-21",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-22",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-23",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-24",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-25",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-26",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-27",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-28",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-29",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        },
+        {
+          "coverage_ratio": 1.0,
+          "date_utc": "2024-04-30",
+          "l1_blob_gas_used": 2359296000,
+          "sum_rollup_blob_gas_used": 2359296000
+        }
+      ],
+      "gaps": {
+        "coverage_drop_dates": [],
+        "coverage_overshoot_dates": [],
+        "dates_missing_l1_blob_baseline": [],
+        "dates_missing_rollup_blob_usage": [],
+        "rollup_ids_not_in_registry": [],
+        "rollups_with_partial_state": [],
+        "rollups_with_unknown_state": []
+      },
+      "l1_blob_baseline_source": "data/samples/panels/daily_rollup_panel_v2_sample.csv",
+      "l1_blob_burn_proxy_source": "l1_blob_gas_used*l1_blob_base_fee_wei",
+      "rollup_blob_usage_source": "data/samples/panels/daily_rollup_panel_v2_sample.csv"
+    },
+    "missing_inputs": [],
+    "mode": "sample",
+    "post_dencun_start_utc": "2024-03-13",
+    "registry": {
+      "active_in_scope_rollup_count_in_observed_post_dencun_window": 13,
+      "address_coverage_state_counts": {
+        "complete": 13
+      },
+      "in_scope_rollup_count": 13,
+      "rollups_with_partial_state": [],
+      "rollups_with_unknown_state": [],
+      "rollups_with_zero_addresses": [],
+      "total_address_count": 53
+    },
+    "rollup_costs_daily": {
+      "date_max": "2024-04-30",
+      "date_min": "2024-02-20",
+      "post_dencun_rows": 147,
+      "rows_total": 213,
+      "unique_dates": 71,
+      "unique_rollups": 3
+    }
+  },
+  "ok": true
+}
