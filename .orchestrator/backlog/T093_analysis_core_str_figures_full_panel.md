@@ -71,10 +71,11 @@ This task is intentionally constrained emphasizes:
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-01-30
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to produce the core full-scale STR results artifacts.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T093_analysis_core_str_figures_full_panel).
