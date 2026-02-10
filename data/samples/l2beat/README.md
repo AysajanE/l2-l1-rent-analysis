@@ -6,7 +6,7 @@ This directory exists to make L2BEAT ingestion **swarm-friendly**:
 - “Discovery” is **curlable** and reproducible.
 - Keep tracked artifacts small (schema snapshots, tiny samples).
 
-## Canonical discovery outcome (2026-02-04)
+## Canonical discovery outcome (2026-02-10)
 
 L2BEAT scaling costs data is served via a **tRPC** endpoint:
 
@@ -55,17 +55,25 @@ print(ssr["props"]["queryState"]["queries"][0]["queryKey"])
 PY
 ```
 
-3) Use the repo script to snapshot responses + write raw manifests:
+3) Use the repo script to fetch snapshots, normalize daily costs, and write manifests:
 
 ```bash
-python src/etl/l2beat_fetch.py --run-date YYYY-MM-DD --mode table --filter-type rollups
-python src/etl/l2beat_fetch.py --run-date YYYY-MM-DD --mode chart  --filter-type rollups
-
-# Track provenance (recommended; does not execute the command, it records it)
-python scripts/make_raw_manifest.py l2beat data/raw/l2beat/YYYY-MM-DD --as-of YYYY-MM-DD -- bash -lc \
-  "python src/etl/l2beat_fetch.py --run-date YYYY-MM-DD --mode table --filter-type rollups && \
-   python src/etl/l2beat_fetch.py --run-date YYYY-MM-DD --mode chart --filter-type rollups"
+# Requires parquet writer support (`pyarrow`) in the Python environment.
+python src/etl/l2beat_fetch.py \
+  --run-date YYYY-MM-DD \
+  --start-date 2022-01-01 \
+  --end-date YYYY-MM-DD \
+  --filter-type rollups \
+  --write-raw-manifest \
+  --write-processed-manifest \
+  --write-sample
 ```
+
+The script writes raw snapshots under `data/raw/l2beat/YYYY-MM-DD/`, builds
+`data/processed/l2beat/l2beat_costs_daily.parquet`, writes
+`data/raw_manifest/l2beat_YYYY-MM-DD.json`, writes
+`data/processed_manifest/l2beat_costs_daily_YYYY-MM-DD.json`, and (if requested)
+creates `data/samples/l2beat/l2beat_costs_daily_sample.csv`.
 
 ## Response schema snapshot (high-level)
 
@@ -87,6 +95,15 @@ For `costs.projectChart`, after parsing `result.data`, the payload includes:
 - `chart`: list of `[timestamp, ...]` rows (parse `result.data` as JSON; see `src/etl/offchain/trpc.py`)
 - `syncedUntil`: timestamp
 - `hasBlobs`: boolean
+- `stats.total.eth` / `stats.total.usd`: range totals used for schema drift checks
+
+For normalized daily total-cost extraction in `src/etl/l2beat_fetch.py`:
+
+- `date_utc` comes from `chart[i][0]` (UNIX timestamp, UTC day).
+- `total_cost_eth` is computed as `chart[i][2] + chart[i][5] + chart[i][8] + chart[i][11]`.
+- `total_cost_usd` is computed as `chart[i][3] + chart[i][6] + chart[i][9] + chart[i][12]`.
+- Rows are mapped via registry `l2beat_slug -> rollup_id` and filtered by
+  `in_scope`, `status`, `start_date_utc`, and `end_date_utc`.
 
 ## Notes / constraints
 
