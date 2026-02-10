@@ -324,7 +324,7 @@ def claimed_task_ids(remote: str, base_branch: str) -> set[str]:
                 tid = _parse_task_id_from_branch(branch)
                 if tid is not None:
                     claimed.add(tid)
-    except (Exception, SystemExit):
+    except Exception:
         pass
 
     gh = _which_or_none("gh")
@@ -374,7 +374,7 @@ def claimed_task_ids(remote: str, base_branch: str) -> set[str]:
                 tid = _parse_task_id_from_branch(branch)
                 if tid is not None:
                     claimed.add(tid)
-    except (Exception, SystemExit):
+    except Exception:
         pass
 
     return claimed
@@ -821,7 +821,7 @@ def _expand_ignored_status_path(*, repo_root: Path, rel_path: str) -> list[str]:
                 children.append(rel)
             if children:
                 return children
-    except Exception:
+    except (Exception, SystemExit):
         pass
 
     return [norm]
@@ -2105,7 +2105,7 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         except subprocess.TimeoutExpired:
             cp = subprocess.CompletedProcess(args=review_cmd, returncode=124, stdout="")
         review_path.write_text(cp.stdout or "", encoding="utf-8")
-    except Exception:
+    except (Exception, SystemExit):
         pass
 
     gate_warning_names = sorted({str(x.get("gate")) for x in gate_warning_failures if x.get("gate")})
