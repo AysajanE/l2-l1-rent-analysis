@@ -81,8 +81,8 @@ Outputs should be rebuildable from raw snapshots (SQL + query outputs) and shoul
 - [ ] `make gate` passes
 
 ## Status
-- State: blocked
-- Last updated: 2026-02-06
+- State: done
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to produce the authoritative on-chain rent series required for STR.
@@ -102,3 +102,11 @@ Outputs should be rebuildable from raw snapshots (SQL + query outputs) and shoul
 
 
 - 2026-02-06: @human Judge blocked: path_ownership_violation. Review log: /Users/aeziz-local/Research/Projects-05-Ethereum Blockchain Economic Analysis/Causal Influence of L2 Scaling Solutions on Ethereum L1 Mainnet Congestion/L1-L2-causal-influence-analysis/wt-T088/data/tmp/swarm_logs/T088_20260206T174929Z_judge_review.txt Non-blocking out-of-scope gate warnings also present: processed_manifest_consistency.
+- 2026-02-10: Re-validated task in current worktree after upstream gate fixes; no new in-scope code/data edits required. Commands run:
+  - `make preflight-bigquery` -> pass
+  - `make gate` -> pass
+  - `make test` -> pass (42 tests)
+- 2026-02-10: Previous out-of-scope `processed_manifest_consistency` blocker is no longer present, so task is unblocked and marked done.
+
+
+- 2026-02-10: Judge: gates ok; ownership ok. Review log: /tmp/swarm-worktrees/wt-T088/data/tmp/swarm_logs/T088_20260210T103114Z_judge_review.txt
