@@ -1,0 +1,28 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "command": "python src/etl/blobscan_fetch.py --run-date 2026-02-10",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "fetched_at_utc": "2026-02-10T00:35:34.232349+00:00",
+  "files": [
+    {
+      "bytes": 529,
+      "path": "data/raw/blobscan/2026-02-10/request_meta.json",
+      "sha256": "9c7fb5f2fe63ce4d44b8bbd21865c8d539288f88ccdbc6d323aab27ebf8ea1df"
+    },
+    {
+      "bytes": 59766,
+      "path": "data/raw/blobscan/2026-02-10/stats_overall.json",
+      "sha256": "bc86b3b1216ece4e69684fe915f6ad484e07c217cfd6982673868ddaeae87375"
+    },
+    {
+      "bytes": 46530,
+      "path": "data/raw/blobscan/2026-02-10/stats_timeseries_global.json",
+      "sha256": "9bdfe66adb9de8958302209e33aa3cd0850add491ca5bb83bc8bc4cab47bca81"
+    }
+  ],
+  "source": "blobscan"
+}
