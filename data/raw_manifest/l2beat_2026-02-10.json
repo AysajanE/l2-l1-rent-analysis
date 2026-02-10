@@ -1,0 +1,73 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "command": "python src/etl/l2beat_fetch.py --run-date 2026-02-10 --start-date 2022-01-01 --end-date 2026-02-10 --filter-type rollups --write-raw-manifest --write-processed-manifest --write-sample",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "fetched_at_utc": "2026-02-10T00:28:31.205229+00:00",
+  "files": [
+    {
+      "bytes": 14529,
+      "path": "data/raw/l2beat/2026-02-10/costs_table_rollups.json",
+      "sha256": "8a95a9d91699a62cc8491ed1adba840a28155a70616649b0779de3baac23e74c"
+    },
+    {
+      "bytes": 14094,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_arbitrum.json",
+      "sha256": "4e243645701de5b86605a29382c92449480c824efbf7a32e95a77591bcd3c759"
+    },
+    {
+      "bytes": 194263,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_base.json",
+      "sha256": "81ed7519cc9aa608f3e8bfedff73bd67592718e82cd47c9d05bbb53758863f16"
+    },
+    {
+      "bytes": 146131,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_blast.json",
+      "sha256": "65708e3cc6f56b1fa3ade014c6e7148c5f08907a1546f212387c9c79f7becea4"
+    },
+    {
+      "bytes": 180033,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_linea.json",
+      "sha256": "a9a4252842d20776bec45fa161cf8abee31e6aa120e064f5df419191befec4c7"
+    },
+    {
+      "bytes": 173008,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_loopring.json",
+      "sha256": "ffd3c84ad69b472d6ed2220104f63cfbdb5176091e3014fa749bf1f72581cf83"
+    },
+    {
+      "bytes": 142509,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_mode.json",
+      "sha256": "2c188eeddce838a0c128a3a780b4d481c4a4c7db68185e79510d0b84e3d59305"
+    },
+    {
+      "bytes": 195796,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_optimism.json",
+      "sha256": "bfb74d19dba424728e5d77e4fef58689bf3ed9ca1351cee24b9ab8d0ef31c461"
+    },
+    {
+      "bytes": 170175,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_scroll.json",
+      "sha256": "4ff6b0fbd51da2d969805bf4dec34bfa3270bb7b0f4fb0f66ddd810bf9bb2bec"
+    },
+    {
+      "bytes": 191569,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_starknet.json",
+      "sha256": "ad6d2c73dc31733708a63397f343dd9fa51647bbabf1117f7d03bb169c112fac"
+    },
+    {
+      "bytes": 198517,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_zksync2.json",
+      "sha256": "6aa71085a6979c0eadbcac4da040ef28c46a21ef556b2bb81cc7aa9cfa0088a3"
+    },
+    {
+      "bytes": 167369,
+      "path": "data/raw/l2beat/2026-02-10/project_chart_zora.json",
+      "sha256": "e17544131e37576d22126d82198c6071742b06b2455a6815f48f44d5e7a61015"
+    }
+  ],
+  "source": "l2beat"
+}

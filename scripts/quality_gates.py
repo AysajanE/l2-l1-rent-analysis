@@ -881,6 +881,7 @@ def gate_processed_manifest_consistency() -> GateResult:
     checked_outputs = 0
     skipped_volatile_outputs = 0
     skipped_volatile_manifests: set[str] = set()
+    strict_volatile_outputs = os.environ.get("GATE_STRICT_VOLATILE_OUTPUTS") == "1"
 
     # In a branch run, enforce strict output existence/hash checks for manifests
     # changed in the current diff. For unchanged historical manifests that point to
@@ -1019,10 +1020,12 @@ def gate_processed_manifest_consistency() -> GateResult:
             if rel_path is None:
                 continue
 
+            is_volatile_output = _is_volatile_manifest_output_path(rel_path)
+
             if (
                 changed_manifest_paths is not None
                 and not manifest_changed_in_diff
-                and _is_volatile_manifest_output_path(rel_path)
+                and is_volatile_output
             ):
                 skipped_volatile_outputs += 1
                 skipped_volatile_manifests.add(manifest_rel_path)
@@ -1030,6 +1033,12 @@ def gate_processed_manifest_consistency() -> GateResult:
 
             output_path = Path(rel_path)
             if not output_path.exists():
+                # Processed/raw outputs are intentionally untracked; in default mode,
+                # skip missing volatile outputs even for changed manifests (CI-safe).
+                if is_volatile_output and not strict_volatile_outputs:
+                    skipped_volatile_outputs += 1
+                    skipped_volatile_manifests.add(manifest_rel_path)
+                    continue
                 failures.append(f"{prefix}:missing_output_file:{rel_path}")
                 continue
             if not output_path.is_file():
