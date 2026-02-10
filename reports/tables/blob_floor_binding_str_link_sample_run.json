@@ -1,0 +1,48 @@
+{
+  "command": "\"src/analysis/blob_floor_binding_str_link.py\" \"--sample\"",
+  "created_at_utc": "2026-02-10T11:49:33.004923+00:00",
+  "git_sha": null,
+  "inputs": [
+    {
+      "bytes": 27148,
+      "path": "data/samples/panels/daily_rollup_panel_v2_sample.csv",
+      "sha256": "6cec5c25cf5207aaa9b914dcb56fdad175a028fa2cb6f2553b8b550a4a5d0d04"
+    }
+  ],
+  "outputs": [
+    {
+      "bytes": 5756,
+      "path": "reports/tables/blob_floor_binding_str_link_sample.csv",
+      "sha256": "eebb68894e53b0ca98729484dc83c54b05ce0badb210983b82ea3028b7c9ade1"
+    },
+    {
+      "bytes": 8789,
+      "path": "reports/figures/blob_floor_binding_str_link_sample.svg",
+      "sha256": "2c22bf78e6abf855c08ab63dad33bfdb83d49af227fe781417dde74e162f7320"
+    }
+  ],
+  "parameters": {
+    "at_minimum_multiplier_denominator": 100,
+    "at_minimum_multiplier_numerator": 105,
+    "at_minimum_threshold_wei": 2100000000,
+    "dencun_date_utc": "2024-03-13",
+    "floor_binding_min_run_days": 7,
+    "min_blob_fee_post_wei": 2000000000
+  },
+  "script_path": "src/analysis/blob_floor_binding_str_link.py",
+  "summary": {
+    "at_minimum_fraction_post": 0.4897959183673469,
+    "at_minimum_threshold_wei": 2100000000,
+    "corr_str_vs_at_minimum_post": -0.048495349496728915,
+    "floor_binding_fraction_post": 0.0,
+    "mean_str_at_minimum_post": 0.12185952584583663,
+    "mean_str_diff_at_min_minus_not_post": -0.000872496274848783,
+    "mean_str_not_at_minimum_post": 0.12273202212068542,
+    "mean_str_post": 0.12230467700647372,
+    "min_blob_fee_post_wei": 2000000000,
+    "n_days_at_minimum_5pct_post": 24,
+    "n_days_floor_binding_7d_post": 0,
+    "n_days_post_dencun": 49,
+    "n_days_total": 71
+  }
+}

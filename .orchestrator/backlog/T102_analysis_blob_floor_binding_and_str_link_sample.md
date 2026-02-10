@@ -72,7 +72,7 @@ This task produces deterministic sample-mode outputs that:
 - [ ] `make gate` passes
 
 ## Status
-- State: active
+- State: done
 - Last updated: 2026-02-10
 ## Notes / Decisions
 
@@ -81,3 +81,15 @@ This task produces deterministic sample-mode outputs that:
 
 
 - 2026-02-10: Claimed by swarm runner; starting worker (branch: T102_analysis_blob_floor_binding_and_str_link_sample).
+
+
+- 2026-02-10: Implemented deterministic sample-mode blob at-minimum / floor-binding regime computation and linked it to ecosystem STR. Outputs:
+  - `src/analysis/blob_floor_binding_str_link.py`
+  - `reports/tables/blob_floor_binding_str_link_sample.csv`
+  - `reports/figures/blob_floor_binding_str_link_sample.svg`
+  - `reports/tables/blob_floor_binding_str_link_sample_run.json`
+  Repro: `python src/analysis/blob_floor_binding_str_link.py --sample`
+  Notes: Protocol floor-binding regime is defined as contiguous runs of >=7 post-Dencun days where `l1_blob_base_fee_wei <= (min_post * 105)//100` (integer-safe). On the committed v2 sample (2024-02-20..2024-04-30), at-minimum days are 24/49 post-Dencun (~49.0%), but no >=7-day contiguous floor-binding regime occurs (indicator remains 0). Gates: `make gate` OK; `make test` OK.
+
+
+- 2026-02-10: Judge: gates ok; ownership ok. Review log: /tmp/swarm-worktrees/wt-T102/data/tmp/swarm_logs/T102_20260210T115127Z_judge_review.txt
