@@ -23,15 +23,61 @@ BLOB_GAS_TOLERANCE = 0.01
 
 DEFAULT_TOP_K = 10
 
-SAMPLE_GROWTHEPIE_CSV = REPO_ROOT / "data" / "samples" / "growthepie" / "vendor_daily_rollup_panel_sample.csv"
+SAMPLE_GROWTHEPIE_CANDIDATES = [
+    REPO_ROOT / "data" / "samples" / "growthepie" / "vendor_daily_rollup_panel_sample.csv",
+    REPO_ROOT / "data" / "processed" / "growthepie" / "vendor_daily_rollup_panel.csv",
+    REPO_ROOT / "data" / "processed" / "growthepie" / "vendor_daily_rollup_panel.parquet",
+]
 SAMPLE_ONCHAIN_CANDIDATES = [
-    REPO_ROOT / "data" / "samples" / "onchain" / "rollup_costs_daily_sample.csv",
     REPO_ROOT / "data" / "samples" / "panels" / "daily_rollup_panel_v1_sample.csv",
+    REPO_ROOT / "data" / "samples" / "l1" / "rollup_costs_daily_sample.csv",
+    REPO_ROOT / "data" / "processed" / "panels" / "daily_rollup_panel_v1.csv",
+    REPO_ROOT / "data" / "processed" / "panels" / "daily_rollup_panel_v1.parquet",
     REPO_ROOT / "data" / "processed" / "onchain" / "rollup_costs_daily.csv",
+    REPO_ROOT / "data" / "processed" / "onchain" / "rollup_costs_daily.parquet",
 ]
 SAMPLE_L2BEAT_CANDIDATES = [
     REPO_ROOT / "data" / "samples" / "l2beat" / "l2beat_costs_daily_sample.csv",
+    REPO_ROOT / "data" / "processed" / "l2beat" / "l2beat_costs_daily.parquet",
     REPO_ROOT / "data" / "processed" / "l2beat" / "l2beat_costs_daily.csv",
+]
+SAMPLE_BLOBSCAN_CANDIDATES = [
+    REPO_ROOT / "data" / "samples" / "blobscan" / "blobscan_daily_sample.csv",
+    REPO_ROOT / "data" / "processed" / "blobscan" / "blobscan_daily.parquet",
+    REPO_ROOT / "data" / "processed" / "blobscan" / "blobscan_daily.csv",
+]
+SAMPLE_ONCHAIN_BLOB_CANDIDATES = [
+    REPO_ROOT / "data" / "samples" / "panels" / "daily_rollup_panel_v2_sample.csv",
+    REPO_ROOT / "data" / "samples" / "l1" / "l1_blocks_sample.csv",
+    REPO_ROOT / "data" / "processed" / "l1" / "l1_blocks.parquet",
+    REPO_ROOT / "data" / "processed" / "l1" / "l1_blocks.csv",
+    REPO_ROOT / "data" / "processed" / "panels" / "daily_rollup_panel_v2.csv",
+    REPO_ROOT / "data" / "processed" / "panels" / "daily_rollup_panel_v2.parquet",
+]
+
+FULL_GROWTHEPIE_CANDIDATES = [
+    REPO_ROOT / "data" / "processed" / "growthepie" / "vendor_daily_rollup_panel.csv",
+    REPO_ROOT / "data" / "processed" / "growthepie" / "vendor_daily_rollup_panel.parquet",
+]
+FULL_ONCHAIN_CANDIDATES = [
+    REPO_ROOT / "data" / "processed" / "panels" / "daily_rollup_panel_v1.csv",
+    REPO_ROOT / "data" / "processed" / "panels" / "daily_rollup_panel_v1.parquet",
+    REPO_ROOT / "data" / "processed" / "onchain" / "rollup_costs_daily.csv",
+    REPO_ROOT / "data" / "processed" / "onchain" / "rollup_costs_daily.parquet",
+]
+FULL_L2BEAT_CANDIDATES = [
+    REPO_ROOT / "data" / "processed" / "l2beat" / "l2beat_costs_daily.parquet",
+    REPO_ROOT / "data" / "processed" / "l2beat" / "l2beat_costs_daily.csv",
+]
+FULL_BLOBSCAN_CANDIDATES = [
+    REPO_ROOT / "data" / "processed" / "blobscan" / "blobscan_daily.parquet",
+    REPO_ROOT / "data" / "processed" / "blobscan" / "blobscan_daily.csv",
+]
+FULL_ONCHAIN_BLOB_CANDIDATES = [
+    REPO_ROOT / "data" / "processed" / "l1" / "l1_blocks.parquet",
+    REPO_ROOT / "data" / "processed" / "l1" / "l1_blocks.csv",
+    REPO_ROOT / "data" / "processed" / "panels" / "daily_rollup_panel_v2.csv",
+    REPO_ROOT / "data" / "processed" / "panels" / "daily_rollup_panel_v2.parquet",
 ]
 
 DEFAULT_OUT_JSON = REPO_ROOT / "reports" / "validation" / "cross_source_validation.json"
@@ -54,6 +100,23 @@ def _first_existing(candidates: list[Path]) -> Path:
     return candidates[0]
 
 
+def _resolve_required_input(*, override: Path | None, defaults: list[Path]) -> Path | None:
+    if override is not None:
+        return override
+    if not defaults:
+        return None
+    return _first_existing(defaults)
+
+
+def _resolve_optional_input(*, override: Path | None, defaults: list[Path]) -> Path | None:
+    if override is not None:
+        return override
+    for p in defaults:
+        if p.exists():
+            return p
+    return None
+
+
 def _add_missing_input(missing_inputs: list[str], item: str) -> None:
     if item not in missing_inputs:
         missing_inputs.append(item)
@@ -68,9 +131,56 @@ def _load_csv(path: Path) -> tuple[list[str], list[dict[str, str]]]:
         return list(reader.fieldnames), rows
 
 
-def _parse_month(date_utc: str) -> str | None:
-    raw = date_utc.strip()
+def _load_parquet(path: Path) -> tuple[list[str], list[dict[str, Any]]]:
+    try:
+        import pyarrow.parquet as pq  # type: ignore
+    except Exception as exc:  # pragma: no cover - dependency availability is environment-specific
+        raise ValueError(f"pyarrow_unavailable: {exc}") from exc
+
+    table = pq.read_table(path)
+    rows = [dict(r) for r in table.to_pylist()]
+    return list(table.schema.names), rows
+
+
+def _load_table(path: Path) -> tuple[list[str], list[dict[str, Any]]]:
+    if path.suffix.lower() != ".parquet":
+        return _load_csv(path)
+
+    errors: list[str] = []
+    try:
+        return _load_parquet(path)
+    except Exception as exc:
+        errors.append(f"parquet_read_failed: {exc}")
+    try:
+        return _load_csv(path)
+    except Exception as exc:
+        errors.append(f"csv_fallback_failed: {exc}")
+    raise ValueError("; ".join(errors))
+
+
+def _normalize_date_utc(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, date):
+        return value.isoformat()
+
+    raw = str(value).strip()
     if raw == "":
+        return None
+    if "T" in raw:
+        raw = raw.split("T", 1)[0].strip()
+    elif " " in raw:
+        raw = raw.split(" ", 1)[0].strip()
+    try:
+        date.fromisoformat(raw)
+    except ValueError:
+        return None
+    return raw
+
+
+def _parse_month(date_utc: Any) -> str | None:
+    raw = _normalize_date_utc(date_utc)
+    if raw is None:
         return None
     try:
         d = date.fromisoformat(raw)
@@ -212,7 +322,7 @@ def _validate_required_columns(
 def _aggregate_monthly_rollup_metric(
     *,
     source: str,
-    rows: list[dict[str, str]],
+    rows: list[dict[str, Any]],
     value_col: str,
     failures: list[ValidationFailure],
     missing_inputs: list[str],
@@ -221,7 +331,7 @@ def _aggregate_monthly_rollup_metric(
     out: dict[tuple[str, str], float] = defaultdict(float)
     rel = _rel(input_path) or source
     for i, row in enumerate(rows):
-        month = _parse_month(str(row.get("date_utc", "")))
+        month = _parse_month(row.get("date_utc"))
         if month is None:
             _add_missing_input(missing_inputs, rel)
             if len(failures) < 200:
@@ -291,7 +401,7 @@ def _aggregate_monthly_rollup_metric(
 
 def _aggregate_rollup_fees_for_ranking(
     *,
-    rows: list[dict[str, str]],
+    rows: list[dict[str, Any]],
     failures: list[ValidationFailure],
     missing_inputs: list[str],
     input_path: Path | None,
@@ -376,16 +486,29 @@ def _detect_blob_column(fieldnames: list[str], *, source: str) -> str | None:
 def _aggregate_daily_metric(
     *,
     source: str,
-    rows: list[dict[str, str]],
+    rows: list[dict[str, Any]],
     value_col: str,
+    aggregation: str = "sum",
     failures: list[ValidationFailure],
     missing_inputs: list[str],
     input_path: Path | None,
 ) -> dict[str, float]:
     out: dict[str, float] = defaultdict(float)
     rel = _rel(input_path) or source
+    use_max = aggregation == "max"
     for i, row in enumerate(rows):
-        d = str(row.get("date_utc", "")).strip()
+        d = _normalize_date_utc(row.get("date_utc"))
+        if d is None:
+            _add_missing_input(missing_inputs, rel)
+            if len(failures) < 200:
+                failures.append(
+                    ValidationFailure(
+                        check="schema",
+                        message="invalid_date_utc",
+                        details={"source": source, "path": rel, "row": i, "value": row.get("date_utc")},
+                    )
+                )
+            continue
         month = _parse_month(d)
         if month is None:
             _add_missing_input(missing_inputs, rel)
@@ -437,7 +560,10 @@ def _aggregate_daily_metric(
                     )
                 )
             continue
-        out[d] += float(value)
+        if use_max:
+            out[d] = max(out.get(d, float("-inf")), float(value))
+        else:
+            out[d] += float(value)
     return dict(out)
 
 
@@ -509,7 +635,7 @@ def run_validation(
         )
         _add_missing_input(missing_inputs, "blob_check_pair")
 
-    input_rows: dict[str, list[dict[str, str]]] = {}
+    input_rows: dict[str, list[dict[str, Any]]] = {}
     input_fields: dict[str, list[str]] = {}
 
     for spec in input_specs:
@@ -522,7 +648,7 @@ def run_validation(
                 failures.append(
                     ValidationFailure(
                         check="inputs",
-                        message="missing_input_argument",
+                        message="missing_input_path",
                         details={"source": name},
                     )
                 )
@@ -542,12 +668,12 @@ def run_validation(
             continue
 
         try:
-            fieldnames, rows = _load_csv(path)
+            fieldnames, rows = _load_table(path)
         except Exception as exc:
             failures.append(
                 ValidationFailure(
                     check="inputs",
-                    message="invalid_csv",
+                    message="invalid_input_table",
                     details={"source": name, "path": _rel(path), "error": str(exc)},
                 )
             )
@@ -590,6 +716,7 @@ def run_validation(
     # Schema checks for optional blob inputs (if provided).
     blobscan_blob_col: str | None = None
     onchain_blob_col: str | None = None
+    onchain_blob_aggregation = "sum"
     if blobscan_csv is not None and "blobscan" in input_fields:
         _validate_required_columns(
             source="blobscan",
@@ -636,6 +763,9 @@ def run_validation(
                     },
                 )
             )
+        elif onchain_blob_col == "l1_blob_gas_used" and "rollup_id" in set(input_fields["onchain_blob"]):
+            # Panel-style inputs can repeat the same L1 total per rollup-day; use max per day to avoid double counting.
+            onchain_blob_aggregation = "max"
 
     # Compute monthly reconciliation only when required inputs are present and parseable.
     monthly_records: list[dict[str, Any]] = []
@@ -817,6 +947,7 @@ def run_validation(
                 source="onchain_blob",
                 rows=input_rows["onchain_blob"],
                 value_col=onchain_blob_col,
+                aggregation=onchain_blob_aggregation,
                 failures=failures,
                 missing_inputs=missing_inputs,
                 input_path=onchain_blob_csv,
@@ -938,7 +1069,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="validate_cross_source.py")
     mode = p.add_mutually_exclusive_group(required=True)
     mode.add_argument("--sample", action="store_true", help="Run deterministic validation using committed sample inputs.")
-    mode.add_argument("--full", action="store_true", help="Run validation with explicit input arguments.")
+    mode.add_argument("--full", action="store_true", help="Run validation preferring data/processed inputs.")
 
     p.add_argument("--growthepie-csv", default=None, help="growthepie panel CSV path.")
     p.add_argument("--onchain-csv", default=None, help="On-chain rollup rent CSV path.")
@@ -956,21 +1087,35 @@ def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     out_json = Path(args.out_json)
     out_md = Path(args.out_md)
+    mode = "sample" if args.sample else "full"
 
-    if args.sample:
-        growthepie_csv = Path(args.growthepie_csv) if args.growthepie_csv else SAMPLE_GROWTHEPIE_CSV
-        onchain_csv = Path(args.onchain_csv) if args.onchain_csv else _first_existing(SAMPLE_ONCHAIN_CANDIDATES)
-        l2beat_csv = Path(args.l2beat_csv) if args.l2beat_csv else _first_existing(SAMPLE_L2BEAT_CANDIDATES)
+    growthepie_override = Path(args.growthepie_csv) if args.growthepie_csv else None
+    onchain_override = Path(args.onchain_csv) if args.onchain_csv else None
+    l2beat_override = Path(args.l2beat_csv) if args.l2beat_csv else None
+    blobscan_override = Path(args.blobscan_csv) if args.blobscan_csv else None
+    onchain_blob_override = Path(args.onchain_blob_csv) if args.onchain_blob_csv else None
+
+    if mode == "sample":
+        growthepie_csv = _resolve_required_input(override=growthepie_override, defaults=SAMPLE_GROWTHEPIE_CANDIDATES)
+        onchain_csv = _resolve_required_input(override=onchain_override, defaults=SAMPLE_ONCHAIN_CANDIDATES)
+        l2beat_csv = _resolve_required_input(override=l2beat_override, defaults=SAMPLE_L2BEAT_CANDIDATES)
+        blobscan_csv = _resolve_optional_input(override=blobscan_override, defaults=SAMPLE_BLOBSCAN_CANDIDATES)
+        onchain_blob_csv = _resolve_optional_input(override=onchain_blob_override, defaults=SAMPLE_ONCHAIN_BLOB_CANDIDATES)
     else:
-        growthepie_csv = Path(args.growthepie_csv) if args.growthepie_csv else None
-        onchain_csv = Path(args.onchain_csv) if args.onchain_csv else None
-        l2beat_csv = Path(args.l2beat_csv) if args.l2beat_csv else None
+        growthepie_csv = _resolve_required_input(override=growthepie_override, defaults=FULL_GROWTHEPIE_CANDIDATES)
+        onchain_csv = _resolve_required_input(override=onchain_override, defaults=FULL_ONCHAIN_CANDIDATES)
+        l2beat_csv = _resolve_required_input(override=l2beat_override, defaults=FULL_L2BEAT_CANDIDATES)
+        blobscan_csv = _resolve_optional_input(override=blobscan_override, defaults=FULL_BLOBSCAN_CANDIDATES)
+        onchain_blob_csv = _resolve_optional_input(override=onchain_blob_override, defaults=FULL_ONCHAIN_BLOB_CANDIDATES)
 
-    blobscan_csv = Path(args.blobscan_csv) if args.blobscan_csv else None
-    onchain_blob_csv = Path(args.onchain_blob_csv) if args.onchain_blob_csv else None
+    # In default mode-selection (no explicit blob overrides), only run blob checks when both sources are available.
+    if blobscan_override is None and onchain_blob_override is None:
+        if (blobscan_csv is None) ^ (onchain_blob_csv is None):
+            blobscan_csv = None
+            onchain_blob_csv = None
 
     return run_validation(
-        mode="sample" if args.sample else "full",
+        mode=mode,
         growthepie_csv=growthepie_csv,
         onchain_csv=onchain_csv,
         l2beat_csv=l2beat_csv,

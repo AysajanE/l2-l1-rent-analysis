@@ -1,0 +1,875 @@
+{
+  "failures": [
+    {
+      "check": "monthly_reconciliation",
+      "details": {
+        "growthepie_rent_eth": 71.668569,
+        "month_utc": "2024-04",
+        "onchain_rent_eth": 93.31453421599997,
+        "pct_delta": 0.23196777863022852,
+        "rollup_id": "arbitrum",
+        "source_pair": "growthepie_vs_onchain",
+        "tolerance_pct": 0.1
+      },
+      "message": "delta_gt_10pct"
+    },
+    {
+      "check": "monthly_reconciliation",
+      "details": {
+        "l2beat_total_cost_eth": 65.916194,
+        "month_utc": "2024-04",
+        "onchain_rent_eth": 93.31453421599997,
+        "pct_delta": 0.29361278439840477,
+        "rollup_id": "arbitrum",
+        "source_pair": "l2beat_vs_onchain",
+        "tolerance_pct": 0.1
+      },
+      "message": "delta_gt_10pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 2800746496.0,
+        "date_utc": "2024-04-01",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.18711111111111112,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 2802188288.0,
+        "date_utc": "2024-04-02",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.18772222222222223,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 2796683264.0,
+        "date_utc": "2024-04-03",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.18538888888888888,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 2247360512.0,
+        "date_utc": "2024-04-04",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.04744444444444444,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1904738304.0,
+        "date_utc": "2024-04-05",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.19266666666666668,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1348206592.0,
+        "date_utc": "2024-04-06",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.4285555555555556,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1312686080.0,
+        "date_utc": "2024-04-07",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.4436111111111111,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1325400064.0,
+        "date_utc": "2024-04-08",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.43822222222222224,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1442709504.0,
+        "date_utc": "2024-04-09",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.3885,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1390411776.0,
+        "date_utc": "2024-04-10",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.4106666666666667,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1897791488.0,
+        "date_utc": "2024-04-11",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.19561111111111112,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1983250432.0,
+        "date_utc": "2024-04-12",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.15938888888888889,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1246625792.0,
+        "date_utc": "2024-04-13",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.4716111111111111,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1373896704.0,
+        "date_utc": "2024-04-14",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.4176666666666667,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1366425600.0,
+        "date_utc": "2024-04-15",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.42083333333333334,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1422131200.0,
+        "date_utc": "2024-04-16",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.3972222222222222,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1329463296.0,
+        "date_utc": "2024-04-17",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.4365,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1254359040.0,
+        "date_utc": "2024-04-18",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.4683333333333333,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1151860736.0,
+        "date_utc": "2024-04-19",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.5117777777777778,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1094844416.0,
+        "date_utc": "2024-04-20",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.5359444444444444,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1097990144.0,
+        "date_utc": "2024-04-21",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.5346111111111111,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1236008960.0,
+        "date_utc": "2024-04-22",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.4761111111111111,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1269694464.0,
+        "date_utc": "2024-04-23",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.4618333333333333,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1290534912.0,
+        "date_utc": "2024-04-24",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.453,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1374420992.0,
+        "date_utc": "2024-04-25",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.41744444444444445,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1382285312.0,
+        "date_utc": "2024-04-26",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.4141111111111111,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1236271104.0,
+        "date_utc": "2024-04-27",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.476,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1221984256.0,
+        "date_utc": "2024-04-28",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.48205555555555557,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1396703232.0,
+        "date_utc": "2024-04-29",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.408,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    },
+    {
+      "check": "blob_gas_used_reconciliation",
+      "details": {
+        "blobscan_l1_blob_gas_used": 1455161344.0,
+        "date_utc": "2024-04-30",
+        "onchain_l1_blob_gas_used": 2359296000.0,
+        "pct_delta": 0.38322222222222224,
+        "selected_month_utc": "2024-04",
+        "tolerance_pct": 0.01
+      },
+      "message": "delta_gt_1pct"
+    }
+  ],
+  "inputs": [
+    {
+      "exists": true,
+      "name": "growthepie",
+      "path": "data/samples/growthepie/vendor_daily_rollup_panel_sample.csv",
+      "required": true
+    },
+    {
+      "exists": true,
+      "name": "onchain",
+      "path": "data/samples/panels/daily_rollup_panel_v1_sample.csv",
+      "required": true
+    },
+    {
+      "exists": true,
+      "name": "l2beat",
+      "path": "data/samples/l2beat/l2beat_costs_daily_sample.csv",
+      "required": true
+    },
+    {
+      "exists": true,
+      "name": "blobscan",
+      "path": "data/samples/blobscan/blobscan_daily_sample.csv",
+      "required": false
+    },
+    {
+      "exists": true,
+      "name": "onchain_blob",
+      "path": "data/samples/panels/daily_rollup_panel_v2_sample.csv",
+      "required": false
+    }
+  ],
+  "metrics": {
+    "blob_gas_used_check": {
+      "daily_rows": [
+        {
+          "blobscan_l1_blob_gas_used": 2800746496.0,
+          "date_utc": "2024-04-01",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.18711111111111112
+        },
+        {
+          "blobscan_l1_blob_gas_used": 2802188288.0,
+          "date_utc": "2024-04-02",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.18772222222222223
+        },
+        {
+          "blobscan_l1_blob_gas_used": 2796683264.0,
+          "date_utc": "2024-04-03",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.18538888888888888
+        },
+        {
+          "blobscan_l1_blob_gas_used": 2247360512.0,
+          "date_utc": "2024-04-04",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.04744444444444444
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1904738304.0,
+          "date_utc": "2024-04-05",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.19266666666666668
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1348206592.0,
+          "date_utc": "2024-04-06",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.4285555555555556
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1312686080.0,
+          "date_utc": "2024-04-07",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.4436111111111111
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1325400064.0,
+          "date_utc": "2024-04-08",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.43822222222222224
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1442709504.0,
+          "date_utc": "2024-04-09",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.3885
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1390411776.0,
+          "date_utc": "2024-04-10",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.4106666666666667
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1897791488.0,
+          "date_utc": "2024-04-11",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.19561111111111112
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1983250432.0,
+          "date_utc": "2024-04-12",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.15938888888888889
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1246625792.0,
+          "date_utc": "2024-04-13",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.4716111111111111
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1373896704.0,
+          "date_utc": "2024-04-14",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.4176666666666667
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1366425600.0,
+          "date_utc": "2024-04-15",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.42083333333333334
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1422131200.0,
+          "date_utc": "2024-04-16",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.3972222222222222
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1329463296.0,
+          "date_utc": "2024-04-17",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.4365
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1254359040.0,
+          "date_utc": "2024-04-18",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.4683333333333333
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1151860736.0,
+          "date_utc": "2024-04-19",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.5117777777777778
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1094844416.0,
+          "date_utc": "2024-04-20",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.5359444444444444
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1097990144.0,
+          "date_utc": "2024-04-21",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.5346111111111111
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1236008960.0,
+          "date_utc": "2024-04-22",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.4761111111111111
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1269694464.0,
+          "date_utc": "2024-04-23",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.4618333333333333
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1290534912.0,
+          "date_utc": "2024-04-24",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.453
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1374420992.0,
+          "date_utc": "2024-04-25",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.41744444444444445
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1382285312.0,
+          "date_utc": "2024-04-26",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.4141111111111111
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1236271104.0,
+          "date_utc": "2024-04-27",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.476
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1221984256.0,
+          "date_utc": "2024-04-28",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.48205555555555557
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1396703232.0,
+          "date_utc": "2024-04-29",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.408
+        },
+        {
+          "blobscan_l1_blob_gas_used": 1455161344.0,
+          "date_utc": "2024-04-30",
+          "onchain_l1_blob_gas_used": 2359296000.0,
+          "pct_delta": 0.38322222222222224
+        }
+      ],
+      "days_compared": 30,
+      "days_gt_1pct": 30,
+      "selected_month_utc": "2024-04",
+      "status": "evaluated"
+    },
+    "missing_inputs": [],
+    "mode": "sample",
+    "monthly_reconciliation": [
+      {
+        "band": "le_5pct",
+        "growthepie_rent_eth": 537.3874969999999,
+        "month_utc": "2024-02",
+        "onchain_rent_eth": 536.499951057,
+        "pct_delta": 0.0016543262329313188,
+        "rollup_id": "base",
+        "source_pair": "growthepie_vs_onchain"
+      },
+      {
+        "band": "le_5pct",
+        "l2beat_total_cost_eth": 537.3874999999999,
+        "month_utc": "2024-02",
+        "onchain_rent_eth": 536.499951057,
+        "pct_delta": 0.00165433182473051,
+        "rollup_id": "base",
+        "source_pair": "l2beat_vs_onchain"
+      },
+      {
+        "growthepie_rent_eth": 537.3874969999999,
+        "l2beat_total_cost_eth": 537.3874999999999,
+        "month_utc": "2024-02",
+        "pct_delta": 5.582563778327052e-09,
+        "rollup_id": "base",
+        "source_pair": "growthepie_vs_l2beat"
+      },
+      {
+        "band": "le_5pct",
+        "growthepie_rent_eth": 1207.101249,
+        "month_utc": "2024-02",
+        "onchain_rent_eth": 1216.344271521,
+        "pct_delta": 0.007599018417246253,
+        "rollup_id": "arbitrum",
+        "source_pair": "growthepie_vs_onchain"
+      },
+      {
+        "band": "le_5pct",
+        "l2beat_total_cost_eth": 1202.9560079999999,
+        "month_utc": "2024-02",
+        "onchain_rent_eth": 1216.344271521,
+        "pct_delta": 0.011006968861092778,
+        "rollup_id": "arbitrum",
+        "source_pair": "l2beat_vs_onchain"
+      },
+      {
+        "growthepie_rent_eth": 1207.101249,
+        "l2beat_total_cost_eth": 1202.9560079999999,
+        "month_utc": "2024-02",
+        "pct_delta": 0.00343404582128816,
+        "rollup_id": "arbitrum",
+        "source_pair": "growthepie_vs_l2beat"
+      },
+      {
+        "band": "le_5pct",
+        "growthepie_rent_eth": 1019.095999,
+        "month_utc": "2024-02",
+        "onchain_rent_eth": 1018.1686346399999,
+        "pct_delta": 0.0009108160755000702,
+        "rollup_id": "optimism",
+        "source_pair": "growthepie_vs_onchain"
+      },
+      {
+        "band": "le_5pct",
+        "l2beat_total_cost_eth": 1019.095999,
+        "month_utc": "2024-02",
+        "onchain_rent_eth": 1018.1686346399999,
+        "pct_delta": 0.0009108160755000702,
+        "rollup_id": "optimism",
+        "source_pair": "l2beat_vs_onchain"
+      },
+      {
+        "growthepie_rent_eth": 1019.095999,
+        "l2beat_total_cost_eth": 1019.095999,
+        "month_utc": "2024-02",
+        "pct_delta": 0.0,
+        "rollup_id": "optimism",
+        "source_pair": "growthepie_vs_l2beat"
+      },
+      {
+        "band": "le_5pct",
+        "growthepie_rent_eth": 1057.3455880000001,
+        "month_utc": "2024-03",
+        "onchain_rent_eth": 1054.468703103,
+        "pct_delta": 0.00272827907412921,
+        "rollup_id": "base",
+        "source_pair": "growthepie_vs_onchain"
+      },
+      {
+        "band": "le_5pct",
+        "l2beat_total_cost_eth": 1057.3455880000001,
+        "month_utc": "2024-03",
+        "onchain_rent_eth": 1054.468703103,
+        "pct_delta": 0.00272827907412921,
+        "rollup_id": "base",
+        "source_pair": "l2beat_vs_onchain"
+      },
+      {
+        "growthepie_rent_eth": 1057.3455880000001,
+        "l2beat_total_cost_eth": 1057.3455880000001,
+        "month_utc": "2024-03",
+        "pct_delta": 0.0,
+        "rollup_id": "base",
+        "source_pair": "growthepie_vs_l2beat"
+      },
+      {
+        "band": "le_5pct",
+        "growthepie_rent_eth": 2131.271757,
+        "month_utc": "2024-03",
+        "onchain_rent_eth": 2172.47614629,
+        "pct_delta": 0.01896655544888998,
+        "rollup_id": "arbitrum",
+        "source_pair": "growthepie_vs_onchain"
+      },
+      {
+        "band": "le_5pct",
+        "l2beat_total_cost_eth": 2118.1630129999994,
+        "month_utc": "2024-03",
+        "onchain_rent_eth": 2172.47614629,
+        "pct_delta": 0.025000566005179286,
+        "rollup_id": "arbitrum",
+        "source_pair": "l2beat_vs_onchain"
+      },
+      {
+        "growthepie_rent_eth": 2131.271757,
+        "l2beat_total_cost_eth": 2118.1630129999994,
+        "month_utc": "2024-03",
+        "pct_delta": 0.006150667533103602,
+        "rollup_id": "arbitrum",
+        "source_pair": "growthepie_vs_l2beat"
+      },
+      {
+        "band": "le_5pct",
+        "growthepie_rent_eth": 1521.4996570000003,
+        "month_utc": "2024-03",
+        "onchain_rent_eth": 1518.663868917,
+        "pct_delta": 0.001867291466559107,
+        "rollup_id": "optimism",
+        "source_pair": "growthepie_vs_onchain"
+      },
+      {
+        "band": "le_5pct",
+        "l2beat_total_cost_eth": 1521.4989620000001,
+        "month_utc": "2024-03",
+        "onchain_rent_eth": 1518.663868917,
+        "pct_delta": 0.0018668338274367162,
+        "rollup_id": "optimism",
+        "source_pair": "l2beat_vs_onchain"
+      },
+      {
+        "growthepie_rent_eth": 1521.4996570000003,
+        "l2beat_total_cost_eth": 1521.4989620000001,
+        "month_utc": "2024-03",
+        "pct_delta": 4.5678616947461445e-07,
+        "rollup_id": "optimism",
+        "source_pair": "growthepie_vs_l2beat"
+      },
+      {
+        "band": "le_5pct",
+        "growthepie_rent_eth": 71.46501999999995,
+        "month_utc": "2024-04",
+        "onchain_rent_eth": 70.349163168,
+        "pct_delta": 0.01586169304296036,
+        "rollup_id": "base",
+        "source_pair": "growthepie_vs_onchain"
+      },
+      {
+        "band": "le_5pct",
+        "l2beat_total_cost_eth": 71.46502099999996,
+        "month_utc": "2024-04",
+        "onchain_rent_eth": 70.349163168,
+        "pct_delta": 0.015861707257770696,
+        "rollup_id": "base",
+        "source_pair": "l2beat_vs_onchain"
+      },
+      {
+        "growthepie_rent_eth": 71.46501999999995,
+        "l2beat_total_cost_eth": 71.46502099999996,
+        "month_utc": "2024-04",
+        "pct_delta": 1.3992859691262078e-08,
+        "rollup_id": "base",
+        "source_pair": "growthepie_vs_l2beat"
+      },
+      {
+        "band": "gt_10pct",
+        "growthepie_rent_eth": 71.668569,
+        "month_utc": "2024-04",
+        "onchain_rent_eth": 93.31453421599997,
+        "pct_delta": 0.23196777863022852,
+        "rollup_id": "arbitrum",
+        "source_pair": "growthepie_vs_onchain"
+      },
+      {
+        "band": "gt_10pct",
+        "l2beat_total_cost_eth": 65.916194,
+        "month_utc": "2024-04",
+        "onchain_rent_eth": 93.31453421599997,
+        "pct_delta": 0.29361278439840477,
+        "rollup_id": "arbitrum",
+        "source_pair": "l2beat_vs_onchain"
+      },
+      {
+        "growthepie_rent_eth": 71.668569,
+        "l2beat_total_cost_eth": 65.916194,
+        "month_utc": "2024-04",
+        "pct_delta": 0.0802635671433596,
+        "rollup_id": "arbitrum",
+        "source_pair": "growthepie_vs_l2beat"
+      },
+      {
+        "band": "le_5pct",
+        "growthepie_rent_eth": 41.382203,
+        "month_utc": "2024-04",
+        "onchain_rent_eth": 40.244995675000006,
+        "pct_delta": 0.02825711137313947,
+        "rollup_id": "optimism",
+        "source_pair": "growthepie_vs_onchain"
+      },
+      {
+        "band": "le_5pct",
+        "l2beat_total_cost_eth": 41.382203,
+        "month_utc": "2024-04",
+        "onchain_rent_eth": 40.244995675000006,
+        "pct_delta": 0.02825711137313947,
+        "rollup_id": "optimism",
+        "source_pair": "l2beat_vs_onchain"
+      },
+      {
+        "growthepie_rent_eth": 41.382203,
+        "l2beat_total_cost_eth": 41.382203,
+        "month_utc": "2024-04",
+        "pct_delta": 0.0,
+        "rollup_id": "optimism",
+        "source_pair": "growthepie_vs_l2beat"
+      }
+    ],
+    "monthly_reconciliation_summary": {
+      "gt_10pct_failure_rows": 2,
+      "records_between_5pct_10pct": 0,
+      "records_gt_10pct": 2,
+      "records_le_5pct": 16,
+      "records_total": 27,
+      "top_rollup_count": 3
+    },
+    "tolerances": {
+      "blob_gas_used_pct": 0.01,
+      "monthly_target_pct_high": 0.1,
+      "monthly_target_pct_low": 0.05
+    },
+    "top_k": 10,
+    "top_rollups_by_fees": [
+      "base",
+      "arbitrum",
+      "optimism"
+    ],
+    "unknown_unattributed_rollups": {
+      "growthepie": [],
+      "l2beat": [],
+      "onchain": []
+    }
+  },
+  "ok": false
+}
