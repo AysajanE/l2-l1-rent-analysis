@@ -86,10 +86,28 @@ Downstream tasks (T087B/T087C) must depend on this probe so the swarm fails fast
   - `python src/etl/l1_rpc_probe_blob_fields.py --as-of 2026-02-04 --scan-latest-blocks 2048 --out data/processed/l1/l1_rpc_probe_blob_fields_report.json --write-manifest`
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-04
-
+- State: done
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-04: Split from the original monolithic T087 per task-level feedback; this probe defines a concrete “blob-ready” acceptance test.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T087A_onchain_rpc_capability_probe_blob_fields).
+
+- 2026-02-10: Worker execution completed for acceptance probe and manifests.
+  - Commands run:
+    - `make preflight-onchain` (pass)
+    - `python src/etl/l1_rpc_probe_blob_fields.py --as-of 2026-02-04 --scan-latest-blocks 2048 --out data/processed/l1/l1_rpc_probe_blob_fields_report.json --write-manifest` (pass; found type-3 tx and computed `burn_blob_wei=492185059328`)
+    - `make gate` (pass)
+    - `make test` (pass; 42 tests)
+  - Outputs produced:
+    - Raw snapshots (append-only): `data/raw/l1/2026-02-04/probe/{block_0x174b55c.json,tx_0x3b486e493ee9f20c3999fa9a2c5aa77e3ea5cfef1ff68260f027aa178bbe6100.json,receipt_0x3b486e493ee9f20c3999fa9a2c5aa77e3ea5cfef1ff68260f027aa178bbe6100.json}`
+    - Raw manifest: `data/raw_manifest/l1_probe_2026-02-04.json`
+    - Probe report: `data/processed/l1/l1_rpc_probe_blob_fields_report.json`
+    - Processed manifest: `data/processed_manifest/l1_probe_2026-02-04.json`
+  - Limitation:
+    - This sandbox worktree does not expose valid git worktree metadata; processed manifest `transform.git_sha` is `null`.
+
+
+- 2026-02-10: Judge: gates ok; ownership ok. Review log: /tmp/swarm-worktrees/wt-T087A/data/tmp/swarm_logs/T087A_20260210T103923Z_judge_review.txt

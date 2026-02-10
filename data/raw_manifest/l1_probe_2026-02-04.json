@@ -1,0 +1,28 @@
+{
+  "as_of_utc_date": "2026-02-04",
+  "command": "python src/etl/l1_rpc_probe_blob_fields.py --as-of 2026-02-04 --scan-latest-blocks 2048 --out data/processed/l1/l1_rpc_probe_blob_fields_report.json --write-manifest",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "fetched_at_utc": "2026-02-10T10:37:21.749292+00:00",
+  "files": [
+    {
+      "bytes": 1042243,
+      "path": "data/raw/l1/2026-02-04/probe/block_0x174b55c.json",
+      "sha256": "6d7529d7bde1176461ad536e8faef1dc949e5e179cc90185aa8b1cc619f2de59"
+    },
+    {
+      "bytes": 1112,
+      "path": "data/raw/l1/2026-02-04/probe/receipt_0x3b486e493ee9f20c3999fa9a2c5aa77e3ea5cfef1ff68260f027aa178bbe6100.json",
+      "sha256": "f2f179662519961f949712b492ee47797fb46383c9dabda5279f559c97a7e889"
+    },
+    {
+      "bytes": 899,
+      "path": "data/raw/l1/2026-02-04/probe/tx_0x3b486e493ee9f20c3999fa9a2c5aa77e3ea5cfef1ff68260f027aa178bbe6100.json",
+      "sha256": "25549140410ea7a26aec925b1e1ec59e58cc2ff2639adfe57c00a62c4914935b"
+    }
+  ],
+  "source": "l1_probe"
+}
