@@ -118,7 +118,7 @@ class ProcessedManifestGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             manifest = _base_manifest(
-                output_path="data/processed/missing.csv",
+                output_path="data/nonvolatile/missing.csv",
                 output_bytes=1,
                 output_sha256="0" * 64,
             )
@@ -130,7 +130,7 @@ class ProcessedManifestGateTest(unittest.TestCase):
             self.assertFalse(result.ok)
             failures = result.details["failures"]
             self.assertIn(
-                "data/processed_manifest/example_2026-02-06.json:outputs[0]:missing_output_file:data/processed/missing.csv",
+                "data/processed_manifest/example_2026-02-06.json:outputs[0]:missing_output_file:data/nonvolatile/missing.csv",
                 failures,
             )
 
@@ -156,7 +156,7 @@ class ProcessedManifestGateTest(unittest.TestCase):
             self.assertEqual(result.details["skipped_volatile_outputs"], 1)
             self.assertEqual(result.details["failures"], [])
 
-    def test_gate_processed_manifest_consistency_blocks_changed_volatile_missing_output(self) -> None:
+    def test_gate_processed_manifest_consistency_skips_changed_volatile_missing_output_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             manifest = _base_manifest(
@@ -168,6 +168,33 @@ class ProcessedManifestGateTest(unittest.TestCase):
 
             with (
                 _cwd(root),
+                mock.patch.object(quality_gates, "_resolve_base_ref", return_value="origin/main"),
+                mock.patch.object(
+                    quality_gates,
+                    "_git_changed_paths_against_base",
+                    return_value=(["data/processed_manifest/example_2026-02-06.json"], None),
+                ),
+            ):
+                result = quality_gates.gate_processed_manifest_consistency()
+
+            self.assertTrue(result.ok, msg=result.details)
+            self.assertEqual(result.details["checked_outputs"], 0)
+            self.assertEqual(result.details["skipped_volatile_outputs"], 1)
+            self.assertEqual(result.details["failures"], [])
+
+    def test_gate_processed_manifest_consistency_blocks_changed_volatile_missing_output_in_strict_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = _base_manifest(
+                output_path="data/processed/missing.csv",
+                output_bytes=1,
+                output_sha256="0" * 64,
+            )
+            self._write_manifest(root, manifest)
+
+            with (
+                _cwd(root),
+                mock.patch.dict(os.environ, {"GATE_STRICT_VOLATILE_OUTPUTS": "1"}, clear=False),
                 mock.patch.object(quality_gates, "_resolve_base_ref", return_value="origin/main"),
                 mock.patch.object(
                     quality_gates,
