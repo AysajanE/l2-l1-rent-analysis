@@ -95,3 +95,18 @@ Quick content sanity:
 
 - If additional work is expected, new task files must be added under `.orchestrator/backlog/` (with correct dependencies) or the Planner must sweep/move lifecycle folders as needed.
 - Consider enabling branch protection on `main` and requiring at least the CI gate checks.
+
+## Addendum (Framework-Level Learnings)
+
+The swarm appearing to “stop” even though `.orchestrator/backlog/` contains many files is mostly **control-plane hygiene**, not scheduler failure:
+
+- The scheduler uses the **task `State:` field**, not the folder name. If tasks in `.orchestrator/backlog/` are `State: done`, then `ready: []` is correct.
+- A Planner sweep (`python scripts/sweep_tasks.py`) is the mechanism that aligns folders with `State:`. In this run, a dry-run sweep reported many planned moves from backlog to done. Without periodic sweeps, folder names become misleading for operators.
+
+Separately, this run demonstrates a deeper “fullscale autonomy” gap:
+
+- Many tasks are intentionally “sample-mode” and default to committed fixtures for determinism/CI. Fullscale chaining requires a shared artifact plane across isolated worktrees.
+- Isolated git worktrees do not share untracked `data/processed/` outputs. Without a shared artifact store (recommended: BigQuery + an artifact registry) fullscale ETL -> panel -> analysis cannot compose unattended.
+- The judge currently promotes tasks to `done` based on gates + ownership, not on “full outputs exist”. This can mark tasks `done` even when stop conditions mention missing full inputs/outputs.
+
+For a full postmortem + proposed BigQuery-based remedies, see: `.orchestrator/handoff/H127_swarm_framework_postmortem_and_fullscale_roadmap_20260210.md`.
