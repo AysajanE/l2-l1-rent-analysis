@@ -71,10 +71,16 @@ This task is intentionally constrained emphasizes:
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-01-30
-
+- State: done
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to produce the core full-scale STR results artifacts.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T093_analysis_core_str_figures_full_panel).
+- 2026-02-10: Blocked on task stop condition `Missing processed inputs`. Required full-mode panel input is absent: `data/processed/panels/daily_rollup_panel_v1.csv` (`python src/analysis/str_empirical_tests.py --panel data/processed/panels/daily_rollup_panel_v1.csv --tag full` -> `panel not found`).
+- 2026-02-10: Gates run in this worktree: `make gate` (pass), `make test` (pass, 46 tests). `@human` decision needed: provide/regenerate `data/processed/panels/daily_rollup_panel_v1.csv` in this branch so T093 can generate and commit full artifacts.
+
+
+- 2026-02-10: Judge: gates ok; ownership ok. Review log: /tmp/swarm-worktrees/wt-T093/data/tmp/swarm_logs/T093_20260210T110322Z_judge_review.txt
