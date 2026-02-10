@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="620" viewBox="0 0 1120 620">
+<rect x="0" y="0" width="100%" height="100%" fill="white" />
+<text x="78" y="56" font-size="13" fill="#111">Top: ecosystem STR (daily)</text>
+<text x="78" y="310" font-size="13" fill="#111">Bottom: Ethereum L1 blob base fee (daily, gwei)</text>
+<rect x="78" y="12" width="10" height="10" fill="#2563eb" />
+<text x="93" y="21" font-size="12" fill="#111">ecosystem STR</text>
+<rect x="210" y="12" width="10" height="10" fill="#dc2626" />
+<text x="225" y="21" font-size="12" fill="#111">blob base fee (gwei)</text>
+<rect x="390" y="12" width="10" height="10" fill="#10b981" opacity="0.22" />
+<text x="405" y="21" font-size="12" fill="#111">at-minimum day</text>
+<rect x="530" y="12" width="10" height="10" fill="#047857" opacity="0.35" />
+<text x="545" y="21" font-size="12" fill="#111">floor-binding regime day (>=7)</text>
+<line x1="78" y1="35" x2="104" y2="35" stroke="#d97706" stroke-width="2" stroke-dasharray="6 6" />
+<text x="110" y="39" font-size="12" fill="#111">Dencun boundary (2024-03-13)</text>
+<line x1="315" y1="35" x2="341" y2="35" stroke="#f97316" stroke-width="2" stroke-dasharray="7 5" />
+<text x="347" y="39" font-size="12" fill="#111">at-min threshold</text>
+<rect x="718" y="8" width="390" height="140" fill="#f8fafc" stroke="#cbd5e1" />
+<text x="730" y="28" font-size="12" fill="#111">Sample linkage summary</text>
+<text x="730" y="46" font-size="11" fill="#111">Post days: 49</text>
+<text x="730" y="60" font-size="11" fill="#111">At-min days: 24 (49.0%)</text>
+<text x="730" y="74" font-size="11" fill="#111">Floor-binding >=7d days: 0 (0.0%)</text>
+<text x="730" y="88" font-size="11" fill="#111">Min post blob fee (wei): 2000000000</text>
+<text x="730" y="102" font-size="11" fill="#111">At-min threshold (wei): 2100000000</text>
+<text x="730" y="116" font-size="11" fill="#111">Mean STR at-min: 0.1219</text>
+<text x="730" y="130" font-size="11" fill="#111">Mean STR not at-min: 0.1227</text>
+<text x="730" y="144" font-size="11" fill="#111">Corr(STR, at-min): -0.0485</text>
+<line x1="78" y1="70" x2="78" y2="260" stroke="#111" />
+<line x1="78" y1="260" x2="1098" y2="260" stroke="#111" />
+<line x1="78" y1="324" x2="78" y2="514" stroke="#111" />
+<line x1="78" y1="514" x2="1098" y2="514" stroke="#111" />
+<line x1="72" y1="260.00" x2="78" y2="260.00" stroke="#333" />
+<text x="68" y="264.00" font-size="11" text-anchor="end" fill="#111">0.095</text>
+<line x1="72" y1="222.00" x2="78" y2="222.00" stroke="#333" />
+<text x="68" y="226.00" font-size="11" text-anchor="end" fill="#111">0.133</text>
+<line x1="72" y1="184.00" x2="78" y2="184.00" stroke="#333" />
+<text x="68" y="188.00" font-size="11" text-anchor="end" fill="#111">0.170</text>
+<line x1="72" y1="146.00" x2="78" y2="146.00" stroke="#333" />
+<text x="68" y="150.00" font-size="11" text-anchor="end" fill="#111">0.208</text>
+<line x1="72" y1="108.00" x2="78" y2="108.00" stroke="#333" />
+<text x="68" y="112.00" font-size="11" text-anchor="end" fill="#111">0.245</text>
+<line x1="72" y1="70.00" x2="78" y2="70.00" stroke="#333" />
+<text x="68" y="74.00" font-size="11" text-anchor="end" fill="#111">0.283</text>
+<line x1="72" y1="514.00" x2="78" y2="514.00" stroke="#333" />
+<text x="68" y="518.00" font-size="11" text-anchor="end" fill="#111">1.88</text>
+<line x1="72" y1="476.00" x2="78" y2="476.00" stroke="#333" />
+<text x="68" y="480.00" font-size="11" text-anchor="end" fill="#111">2.33</text>
+<line x1="72" y1="438.00" x2="78" y2="438.00" stroke="#333" />
+<text x="68" y="442.00" font-size="11" text-anchor="end" fill="#111">2.78</text>
+<line x1="72" y1="400.00" x2="78" y2="400.00" stroke="#333" />
+<text x="68" y="404.00" font-size="11" text-anchor="end" fill="#111">3.22</text>
+<line x1="72" y1="362.00" x2="78" y2="362.00" stroke="#333" />
+<text x="68" y="366.00" font-size="11" text-anchor="end" fill="#111">3.67</text>
+<line x1="72" y1="324.00" x2="78" y2="324.00" stroke="#333" />
+<text x="68" y="328.00" font-size="11" text-anchor="end" fill="#111">4.12</text>
+<rect x="411.54" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="440.69" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="469.83" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="498.97" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="528.11" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="557.26" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="586.40" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="615.54" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="644.69" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="688.40" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="717.54" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="746.69" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="775.83" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="804.97" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="834.11" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="863.26" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="892.40" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="921.54" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="950.69" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="979.83" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="1008.97" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="1038.11" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="1067.26" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<rect x="1096.40" y="70" width="3.2" height="444" fill="#10b981" opacity="0.12" />
+<line x1="398.57" y1="70" x2="398.57" y2="514" stroke="#d97706" stroke-width="2" stroke-dasharray="6 6" />
+<line x1="398.57" y1="495.34" x2="1098.00" y2="495.34" stroke="#f97316" stroke-width="2" stroke-dasharray="7 5" />
+<text x="1092.00" y="489.34" font-size="11" text-anchor="end" fill="#9a3412">at-min threshold</text>
+<polyline fill="none" stroke="#2563eb" stroke-width="2.4" points="78.00,81.71 92.57,80.95 107.14,81.54 121.71,80.18 136.29,80.77 150.86,81.79 165.43,81.06 180.00,81.61 194.57,80.24 209.14,80.83 223.71,81.85 238.29,81.12 252.86,81.70 267.43,80.34 282.00,80.89 296.57,81.90 311.14,81.17 325.71,81.76 340.29,80.39 354.86,80.98 369.43,81.97 384.00,81.23 398.57,223.97 413.14,223.33 427.71,223.60 442.29,224.10 456.86,223.76 471.43,224.03 486.00,223.37 500.57,223.63 515.14,224.13 529.71,223.80 544.29,224.06 558.86,223.43 573.43,223.69 588.00,224.16 602.57,223.83 617.14,224.09 631.71,223.46 646.29,223.72 660.86,224.21 675.43,225.26 690.00,226.29 704.57,227.31 719.14,228.31 733.71,229.30 748.29,230.27 762.86,231.22 777.43,232.17 792.00,233.09 806.57,234.01 821.14,234.91 835.71,235.80 850.29,236.67 864.86,237.53 879.43,238.38 894.00,239.22 908.57,240.05 923.14,240.86 937.71,241.67 952.29,242.46 966.86,243.24 981.43,244.01 996.00,244.77 1010.57,245.52 1025.14,246.26 1039.71,246.99 1054.29,247.71 1068.86,248.43 1083.43,249.13 1098.00,249.82" />
+<polyline fill="none" stroke="#dc2626" stroke-width="2.4" points="398.57,334.18 413.14,503.82 427.71,334.18 442.29,503.82 456.86,334.18 471.43,503.82 486.00,334.18 500.57,503.82 515.14,334.18 529.71,503.82 544.29,334.18 558.86,503.82 573.43,334.18 588.00,503.82 602.57,334.18 617.14,503.82 631.71,334.18 646.29,503.82 660.86,334.18 675.43,334.18 690.00,503.82 704.57,334.18 719.14,503.82 733.71,334.18 748.29,503.82 762.86,334.18 777.43,503.82 792.00,334.18 806.57,503.82 821.14,334.18 835.71,503.82 850.29,334.18 864.86,503.82 879.43,334.18 894.00,503.82 908.57,334.18 923.14,503.82 937.71,334.18 952.29,503.82 966.86,334.18 981.43,503.82 996.00,334.18 1010.57,503.82 1025.14,334.18 1039.71,503.82 1054.29,334.18 1068.86,503.82 1083.43,334.18 1098.00,503.82" />
+<line x1="78.00" y1="514" x2="78.00" y2="519" stroke="#333" />
+<text x="78.00" y="532" font-size="11" text-anchor="middle" fill="#111">2024-02-20</text>
+<line x1="398.57" y1="514" x2="398.57" y2="519" stroke="#333" />
+<text x="398.57" y="532" font-size="11" text-anchor="middle" fill="#111">2024-03-13</text>
+<line x1="588.00" y1="514" x2="588.00" y2="519" stroke="#333" />
+<text x="588.00" y="532" font-size="11" text-anchor="middle" fill="#111">2024-03-26</text>
+<line x1="1098.00" y1="514" x2="1098.00" y2="519" stroke="#333" />
+<text x="1098.00" y="532" font-size="11" text-anchor="middle" fill="#111">2024-04-30</text>
+</svg>
