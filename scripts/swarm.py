@@ -324,7 +324,7 @@ def claimed_task_ids(remote: str, base_branch: str) -> set[str]:
                 tid = _parse_task_id_from_branch(branch)
                 if tid is not None:
                     claimed.add(tid)
-    except Exception:
+    except (Exception, SystemExit):
         pass
 
     gh = _which_or_none("gh")
