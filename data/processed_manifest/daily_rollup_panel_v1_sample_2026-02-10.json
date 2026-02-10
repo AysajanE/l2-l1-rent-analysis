@@ -1,0 +1,135 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "created_at_utc": "2026-02-10T10:40:38.380285+00:00",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "inputs": [
+    {
+      "bytes": 1178,
+      "path": "contracts/schemas/panel_schema_str_v1.yaml",
+      "sha256": "6dc78e70f67f750846d5623c42065a6962f5540eb03b2ac8b31ba302d7721e83"
+    },
+    {
+      "bytes": 5754,
+      "path": "data/processed_manifest/onchain_rollup_costs_2026-02-06.json",
+      "sha256": "958a8ab91877110f373ddeda260cb6acf80108ce4e7eb2e1b8659f845e0165a4"
+    },
+    {
+      "bytes": 1320,
+      "path": "data/raw_manifest/growthepie_2026-02-10.json",
+      "sha256": "6da666c754ae286027bf0a4258ca0474a91d7820f597780ee8928c23687f90ad"
+    },
+    {
+      "bytes": 11932,
+      "path": "data/samples/growthepie/vendor_daily_rollup_panel_sample.csv",
+      "sha256": "ad6f88914cd2b7dcdc45edbc0c2f4d4ad85812686d9640b1ee19250876784439"
+    },
+    {
+      "bytes": 10953,
+      "path": "data/samples/l1/rollup_costs_daily_sample.csv",
+      "sha256": "8fb94222d3370e96887d841f7ee30698d2f0c802ce742551688d9e5a11bc66d4"
+    },
+    {
+      "bytes": 26014,
+      "path": "registry/rollup_registry_v1.csv",
+      "sha256": "0670c8ad4717854e510ef073885c073e617fad5be8bb98637c90f09e143286c6"
+    }
+  ],
+  "meta": {
+    "contract_assertions": {
+      "schema_fields": [
+        "date_utc",
+        "rollup_id",
+        "l2_fees_eth",
+        "rent_paid_eth",
+        "profit_eth",
+        "txcount"
+      ],
+      "schema_required_fields": [
+        "date_utc",
+        "rollup_id",
+        "l2_fees_eth",
+        "rent_paid_eth"
+      ]
+    },
+    "counts": {
+      "dropped_deprecated": 0,
+      "dropped_missing_core": 0,
+      "dropped_out_of_scope": 0,
+      "dropped_outside_window": 0,
+      "input_rows": 213,
+      "output_rows": 213
+    },
+    "join": {
+      "fees_csv": "data/samples/growthepie/vendor_daily_rollup_panel_sample.csv",
+      "join_counts": {
+        "candidate_rows": 213,
+        "candidate_rows_missing_fees": 0,
+        "candidate_rows_missing_rent": 0,
+        "candidate_rows_with_both": 213,
+        "fees_rows": 213,
+        "rent_rows": 213
+      },
+      "rent_csv": "data/samples/l1/rollup_costs_daily_sample.csv"
+    },
+    "panel_schema_version": 1,
+    "registry_path": "registry/rollup_registry_v1.csv",
+    "registry_sha256": "0670c8ad4717854e510ef073885c073e617fad5be8bb98637c90f09e143286c6",
+    "schema_path": "contracts/schemas/panel_schema_str_v1.yaml",
+    "schema_sha256": "6dc78e70f67f750846d5623c42065a6962f5540eb03b2ac8b31ba302d7721e83",
+    "universe": {
+      "panel_date_max": "2024-04-30",
+      "panel_date_min": "2024-02-20",
+      "panel_rollups_in_output": [
+        "arbitrum",
+        "base",
+        "optimism"
+      ],
+      "registry_filter_rules": {
+        "excluded_statuses": [
+          "deprecated"
+        ],
+        "in_scope_required": true,
+        "row_inclusion_rule": "emit row iff l2_fees_eth and rent_paid_eth present (missingness encoded by row omission, not nulls)",
+        "window_rule": "start_date_utc <= date_utc <= end_date_utc (when set); inactive requires end_date_utc"
+      },
+      "registry_in_scope_rollups": [
+        "arbitrum",
+        "base",
+        "blast",
+        "linea",
+        "loopring",
+        "metis",
+        "mode",
+        "optimism",
+        "scroll",
+        "starknet",
+        "taiko",
+        "zksync_era",
+        "zora"
+      ]
+    }
+  },
+  "name": "daily_rollup_panel_v1_sample",
+  "outputs": [
+    {
+      "bytes": 12553,
+      "path": "data/processed/panels/daily_rollup_panel_v1_sample.csv",
+      "sha256": "3aa6eb1d9925163623fcd79a1dca3d7fe8da918f6b80ee01b535c34507ad46a7"
+    },
+    {
+      "bytes": 12553,
+      "path": "data/samples/panels/daily_rollup_panel_v1_sample.csv",
+      "sha256": "3aa6eb1d9925163623fcd79a1dca3d7fe8da918f6b80ee01b535c34507ad46a7"
+    }
+  ],
+  "schema_version": 1,
+  "transform": {
+    "command": "python src/etl/panel_build_daily_rollup_panel_v1.py --sample --write-sample --write-manifest --as-of 2026-02-10 --manifest-inputs data/raw_manifest/growthepie_2026-02-10.json data/processed_manifest/onchain_rollup_costs_2026-02-06.json",
+    "git_sha": null,
+    "script_path": "scripts/make_processed_manifest.py"
+  }
+}

@@ -4,16 +4,18 @@ from __future__ import annotations
 
 Inputs (default):
 - `registry/rollup_registry_v1.csv`
-- `data/samples/panels/daily_rollup_panel_v1_sample.csv` (when `--sample`)
+- `data/processed/growthepie/vendor_daily_rollup_panel.csv` + `data/processed/onchain/rollup_costs_daily.csv` (full join mode)
+- `data/samples/growthepie/vendor_daily_rollup_panel_sample.csv` + `data/samples/l1/rollup_costs_daily_sample.csv` (when `--sample`)
 
 Outputs (default):
 - `data/processed/panels/daily_rollup_panel_v1.csv` (full mode)
 - `data/processed/panels/daily_rollup_panel_v1_sample.csv` (sample mode)
+- `data/samples/panels/daily_rollup_panel_v1_sample.csv` (with `--sample --write-sample`)
 - Optional processed manifest under `data/processed_manifest/` (when `--write-manifest`)
 
 How to run:
 - Sample build + manifest:
-  `python src/etl/panel_build_daily_rollup_panel_v1.py --sample --write-manifest --as-of 2026-02-04`
+  `python src/etl/panel_build_daily_rollup_panel_v1.py --sample --write-sample --write-manifest --as-of 2026-02-04`
 - Full build (join mode; recommended):
   `python src/etl/panel_build_daily_rollup_panel_v1.py --fees-csv data/processed/growthepie/vendor_daily_rollup_panel.csv --rent-csv data/processed/onchain/rollup_costs_daily.csv --out data/processed/panels/daily_rollup_panel_v1.csv`
 - Full build (provide a pre-joined candidate panel CSV):
@@ -37,6 +39,9 @@ from pathlib import Path
 PANEL_REQUIRED_COLUMNS = ("date_utc", "rollup_id", "l2_fees_eth", "rent_paid_eth")
 PANEL_OPTIONAL_COLUMNS = ("profit_eth", "txcount")
 PANEL_OUTPUT_COLUMNS = PANEL_REQUIRED_COLUMNS + PANEL_OPTIONAL_COLUMNS
+DEFAULT_SAMPLE_FEES_CSV = Path("data/samples/growthepie/vendor_daily_rollup_panel_sample.csv")
+DEFAULT_SAMPLE_RENT_CSV = Path("data/samples/l1/rollup_costs_daily_sample.csv")
+DEFAULT_SAMPLE_PANEL_CSV = Path("data/samples/panels/daily_rollup_panel_v1_sample.csv")
 
 
 def _sha256_file(path: Path) -> str:
@@ -520,7 +525,9 @@ def main(argv: list[str]) -> None:
     root = _repo_root()
 
     p = argparse.ArgumentParser(prog="panel_build_daily_rollup_panel_v1.py")
-    p.add_argument("--sample", action="store_true", help="Use the committed sample input panel")
+    p.add_argument("--sample", action="store_true", help="Join committed sample growthepie + on-chain sample inputs")
+    p.add_argument("--write-sample", action="store_true", help="In --sample mode, also write the committed golden sample CSV")
+    p.add_argument("--sample-out", dest="sample_out_csv", default=None, help="Output path for committed sample CSV (used with --sample --write-sample)")
     p.add_argument("--registry", default="registry/rollup_registry_v1.csv")
     p.add_argument("--schema", default="contracts/schemas/panel_schema_str_v1.yaml")
     p.add_argument("--input", dest="input_csv", default=None, help="Input candidate panel CSV")
@@ -540,18 +547,36 @@ def main(argv: list[str]) -> None:
     schema_abs = schema_path if schema_path.is_absolute() else (root / schema_path)
     contract_meta = _assert_contract_v1(schema_path=schema_abs)
 
+    if args.write_sample and not args.sample:
+        raise SystemExit("--write-sample requires --sample")
+    if args.sample_out_csv is not None and not args.write_sample:
+        raise SystemExit("--sample-out requires --write-sample")
+
+    input_csv: Path | None = None
+    join_inputs: dict[str, Path] | None = None
+    join_counts: dict[str, int] | None = None
+    sample_out_abs: Path | None = None
+
     if args.sample:
-        input_csv = root / "data/samples/panels/daily_rollup_panel_v1_sample.csv"
-        out_csv = root / "data/processed/panels/daily_rollup_panel_v1_sample.csv"
+        if args.input_csv is not None or args.fees_csv is not None or args.rent_csv is not None:
+            raise SystemExit("--sample cannot be combined with --input/--fees-csv/--rent-csv")
+        join_inputs = {
+            "fees_csv": root / DEFAULT_SAMPLE_FEES_CSV,
+            "rent_csv": root / DEFAULT_SAMPLE_RENT_CSV,
+        }
+        out_csv = Path(args.out_csv) if args.out_csv else (root / "data/processed/panels/daily_rollup_panel_v1_sample.csv")
+        if args.write_sample:
+            sample_out_abs = (
+                Path(args.sample_out_csv)
+                if args.sample_out_csv is not None
+                else (root / DEFAULT_SAMPLE_PANEL_CSV)
+            )
     else:
         if (args.fees_csv is None) != (args.rent_csv is None):
             raise SystemExit("Join mode requires both --fees-csv and --rent-csv (or neither).")
         if args.fees_csv is not None and args.input_csv is not None:
             raise SystemExit("Provide either --input (pre-joined) or --fees-csv/--rent-csv (join mode), not both.")
 
-        input_csv = None
-        join_inputs: dict[str, Path] | None = None
-        join_counts: dict[str, int] | None = None
         if args.fees_csv is not None:
             join_inputs = {"fees_csv": Path(args.fees_csv), "rent_csv": Path(args.rent_csv)}
         else:
@@ -562,29 +587,28 @@ def main(argv: list[str]) -> None:
 
     registry = load_registry(registry_path if registry_path.is_absolute() else (root / registry_path))
     join_meta: dict[str, object] | None = None
-    if args.sample:
-        rows, counts = build_panel(registry=registry, input_csv=input_csv)
+    if join_inputs is not None:
+        fees_csv = join_inputs["fees_csv"]
+        rent_csv = join_inputs["rent_csv"]
+        fees_abs = fees_csv if fees_csv.is_absolute() else (root / fees_csv)
+        rent_abs = rent_csv if rent_csv.is_absolute() else (root / rent_csv)
+        header, candidate_rows, join_counts = _join_fees_and_rent(fees_csv=fees_abs, rent_csv=rent_abs)
+        join_meta = {
+            "fees_csv": str(_ensure_within_repo(root, fees_abs.resolve())),
+            "rent_csv": str(_ensure_within_repo(root, rent_abs.resolve())),
+            "join_counts": join_counts,
+        }
+        rows, counts = build_panel_from_rows(registry=registry, header=header, rows=candidate_rows)
     else:
-        if args.fees_csv is not None:
-            assert join_inputs is not None
-            fees_csv = join_inputs["fees_csv"]
-            rent_csv = join_inputs["rent_csv"]
-            fees_abs = fees_csv if fees_csv.is_absolute() else (root / fees_csv)
-            rent_abs = rent_csv if rent_csv.is_absolute() else (root / rent_csv)
-            header, candidate_rows, join_counts = _join_fees_and_rent(fees_csv=fees_abs, rent_csv=rent_abs)
-            join_meta = {
-                "fees_csv": str(_ensure_within_repo(root, fees_abs.resolve())),
-                "rent_csv": str(_ensure_within_repo(root, rent_abs.resolve())),
-                "join_counts": join_counts,
-            }
-            rows, counts = build_panel_from_rows(registry=registry, header=header, rows=candidate_rows)
-        else:
-            assert input_csv is not None
-            rows, counts = build_panel(
-                registry=registry,
-                input_csv=input_csv if input_csv.is_absolute() else (root / input_csv),
-            )
-    _write_csv(out_csv if out_csv.is_absolute() else (root / out_csv), rows)
+        assert input_csv is not None
+        rows, counts = build_panel(
+            registry=registry,
+            input_csv=input_csv if input_csv.is_absolute() else (root / input_csv),
+        )
+    out_abs = out_csv if out_csv.is_absolute() else (root / out_csv)
+    _write_csv(out_abs, rows)
+    if sample_out_abs is not None:
+        _write_csv(sample_out_abs if sample_out_abs.is_absolute() else (root / sample_out_abs), rows)
 
     if args.write_manifest:
         if args.as_of is None:
@@ -597,23 +621,18 @@ def main(argv: list[str]) -> None:
         manifest_inputs: list[Path] = []
         manifest_inputs.append(registry_path if registry_path.is_absolute() else (root / registry_path))
         manifest_inputs.append(schema_path if schema_path.is_absolute() else (root / schema_path))
-        if args.sample:
-            manifest_inputs.append(input_csv)
+        if join_inputs is not None:
+            fees_csv = join_inputs["fees_csv"]
+            rent_csv = join_inputs["rent_csv"]
+            manifest_inputs.append(fees_csv if fees_csv.is_absolute() else (root / fees_csv))
+            manifest_inputs.append(rent_csv if rent_csv.is_absolute() else (root / rent_csv))
         else:
-            if args.fees_csv is not None:
-                assert join_inputs is not None
-                fees_csv = join_inputs["fees_csv"]
-                rent_csv = join_inputs["rent_csv"]
-                manifest_inputs.append(fees_csv if fees_csv.is_absolute() else (root / fees_csv))
-                manifest_inputs.append(rent_csv if rent_csv.is_absolute() else (root / rent_csv))
-            else:
-                assert input_csv is not None
-                manifest_inputs.append(input_csv if input_csv.is_absolute() else (root / input_csv))
+            assert input_csv is not None
+            manifest_inputs.append(input_csv if input_csv.is_absolute() else (root / input_csv))
         for extra in args.manifest_inputs:
             pth = Path(extra)
             manifest_inputs.append(pth if pth.is_absolute() else (root / pth))
 
-        out_abs = out_csv if out_csv.is_absolute() else (root / out_csv)
         output_rollups = sorted({str(r["rollup_id"]) for r in rows})
         output_dates = sorted({str(r["date_utc"]) for r in rows})
         meta = {
@@ -640,16 +659,22 @@ def main(argv: list[str]) -> None:
         if join_meta is not None:
             meta["join"] = join_meta
 
+        manifest_outputs: list[Path] = [out_abs]
+        if sample_out_abs is not None:
+            manifest_outputs.append(sample_out_abs if sample_out_abs.is_absolute() else (root / sample_out_abs))
         _write_processed_manifest(
             name=manifest_name,
             as_of=as_of,
             manifest_out=manifest_out,
             manifest_inputs=manifest_inputs,
-            outputs=[out_abs],
+            outputs=manifest_outputs,
             meta=meta,
         )
 
-    print(json.dumps({"ok": True, "counts": counts, "out_csv": str(out_csv)}, indent=2, sort_keys=True))
+    summary: dict[str, object] = {"ok": True, "counts": counts, "out_csv": str(out_abs)}
+    if sample_out_abs is not None:
+        summary["sample_out_csv"] = str(sample_out_abs if sample_out_abs.is_absolute() else (root / sample_out_abs))
+    print(json.dumps(summary, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":
