@@ -74,11 +74,12 @@ This report is informational (no new thresholds invented). It makes “how compl
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-05: Added per feedback “Medium-Priority Suggestions”: introduce an explicit universe coverage report task after registry seeding (T082) and on-chain attribution (T088).
 
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T099_validation_universe_coverage_report).
