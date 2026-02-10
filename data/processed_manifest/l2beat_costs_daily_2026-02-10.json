@@ -1,0 +1,157 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "created_at_utc": "2026-02-10T00:28:31.381000+00:00",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "inputs": [
+    {
+      "bytes": 2759,
+      "path": "data/raw_manifest/l2beat_2026-02-10.json",
+      "sha256": "aa6d2be9b22aba843b0525f0203f88869c612defd697fb3667a554233e3ca988"
+    },
+    {
+      "bytes": 26014,
+      "path": "registry/rollup_registry_v1.csv",
+      "sha256": "0670c8ad4717854e510ef073885c073e617fad5be8bb98637c90f09e143286c6"
+    }
+  ],
+  "meta": {
+    "chart_component_indexes": {
+      "eth_total_components": [
+        2,
+        5,
+        8,
+        11
+      ],
+      "usd_total_components": [
+        3,
+        6,
+        9,
+        12
+      ]
+    },
+    "date_range_utc": {
+      "end": "2026-02-10",
+      "start": "2022-01-01"
+    },
+    "endpoints": {
+      "costs_page_url": "https://l2beat.com/scaling/costs",
+      "procedures": [
+        "costs.table",
+        "costs.projectChart"
+      ],
+      "trpc_base_url": "https://l2beat.com/api/trpc"
+    },
+    "normalization_counts": {
+      "chart_files_skipped_unknown_slug": 0,
+      "chart_files_total": 11,
+      "rows_emitted": 9382,
+      "rows_filtered_by_registry_window": 0,
+      "rows_filtered_outside_window": 0,
+      "rows_total_chart_points": 9382
+    },
+    "sample_rollups": [
+      "arbitrum",
+      "optimism",
+      "base"
+    ],
+    "sample_rows_emitted": 212,
+    "sample_window_utc": {
+      "end": "2024-04-30",
+      "start": "2024-02-20"
+    },
+    "snapshot": {
+      "available_slugs": [
+        "aevo",
+        "ancient",
+        "arbitrum",
+        "aztec",
+        "base",
+        "blast",
+        "bob",
+        "bobanetwork",
+        "cyber",
+        "fraxtal",
+        "karak",
+        "linea",
+        "loopring",
+        "lyra",
+        "mantapacific",
+        "mantle",
+        "metal",
+        "mode",
+        "nova",
+        "optimism",
+        "orderly",
+        "polygon-pos",
+        "polygonzkevm",
+        "redstone",
+        "reya",
+        "rss3",
+        "scroll",
+        "starknet",
+        "zksync",
+        "zksync2",
+        "zora"
+      ],
+      "missing_from_table_slugs": [
+        "metis",
+        "taiko"
+      ],
+      "requested_slugs": [
+        "arbitrum",
+        "base",
+        "blast",
+        "linea",
+        "loopring",
+        "metis",
+        "mode",
+        "optimism",
+        "scroll",
+        "starknet",
+        "taiko",
+        "zksync2",
+        "zora"
+      ],
+      "reused_files": [
+        "data/raw/l2beat/2026-02-10/costs_table_rollups.json",
+        "data/raw/l2beat/2026-02-10/project_chart_arbitrum.json"
+      ],
+      "written_files": [
+        "data/raw/l2beat/2026-02-10/project_chart_base.json",
+        "data/raw/l2beat/2026-02-10/project_chart_blast.json",
+        "data/raw/l2beat/2026-02-10/project_chart_linea.json",
+        "data/raw/l2beat/2026-02-10/project_chart_loopring.json",
+        "data/raw/l2beat/2026-02-10/project_chart_mode.json",
+        "data/raw/l2beat/2026-02-10/project_chart_optimism.json",
+        "data/raw/l2beat/2026-02-10/project_chart_scroll.json",
+        "data/raw/l2beat/2026-02-10/project_chart_starknet.json",
+        "data/raw/l2beat/2026-02-10/project_chart_zksync2.json",
+        "data/raw/l2beat/2026-02-10/project_chart_zora.json"
+      ]
+    },
+    "source": "l2beat"
+  },
+  "name": "l2beat_costs_daily",
+  "outputs": [
+    {
+      "bytes": 180991,
+      "path": "data/processed/l2beat/l2beat_costs_daily.parquet",
+      "sha256": "73b117c7c989f15b377e5c13f99642ee0419c6db0a1deeed0b3f84d731678af3"
+    },
+    {
+      "bytes": 10313,
+      "path": "data/samples/l2beat/l2beat_costs_daily_sample.csv",
+      "sha256": "33772b23c315f6960d540a4d9817acb6ebbbe10f8e3aace7f077c38d576a63f3"
+    }
+  ],
+  "schema_version": 1,
+  "transform": {
+    "command": "python src/etl/l2beat_fetch.py --run-date 2026-02-10 --start-date 2022-01-01 --end-date 2026-02-10 --filter-type rollups --write-raw-manifest --write-processed-manifest --write-sample",
+    "git_sha": null,
+    "script_path": "scripts/make_processed_manifest.py"
+  }
+}

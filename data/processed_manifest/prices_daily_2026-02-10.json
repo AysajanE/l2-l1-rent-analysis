@@ -1,0 +1,30 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "created_at_utc": "2026-02-10T00:35:29.024076+00:00",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "inputs": [
+    {
+      "bytes": 681,
+      "path": "data/raw_manifest/prices_2026-02-10.json",
+      "sha256": "35539e54abf2b4ab96139fd9d1e003b695867b6af92547589c2ecf0961817a89"
+    }
+  ],
+  "name": "prices_daily",
+  "outputs": [
+    {
+      "bytes": 36071,
+      "path": "data/processed/prices/prices_daily.csv",
+      "sha256": "2580b246743440c998584a07e09b56e8f6cd7b095d764859bd72a178e95ac187"
+    }
+  ],
+  "schema_version": 1,
+  "transform": {
+    "command": "python src/etl/prices_fetch.py --from-snapshot data/raw/prices/2026-02-10/cryptocompare/eth_usd_histoday.json --source cryptocompare --out data/processed/prices/prices_daily.csv --start-date 2022-01-01 --end-date 2026-02-10 --overwrite",
+    "git_sha": null,
+    "script_path": "scripts/make_processed_manifest.py"
+  }
+}

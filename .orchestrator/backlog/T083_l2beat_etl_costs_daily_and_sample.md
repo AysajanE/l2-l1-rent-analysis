@@ -86,10 +86,36 @@ This task depends on T081 so the registry can provide a deterministic `l2beat_sl
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: done
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to enable cross-source rent triangulation at scale.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T083_l2beat_etl_costs_daily_and_sample).
+
+- 2026-02-10: Implemented full ETL in `src/etl/l2beat_fetch.py` with:
+  - `--discover` curlable endpoint discovery,
+  - `--mode full` to snapshot raw L2BEAT tRPC responses, normalize daily costs, assert required schema columns, write parquet output, and optionally write manifests + sample,
+  - append-only snapshot behavior with resume support (reuses existing raw files for same run-date instead of overwriting).
+
+- 2026-02-10: Generated task outputs using:
+  - `PYTHONPATH=/tmp/pydeps python src/etl/l2beat_fetch.py --run-date 2026-02-10 --start-date 2022-01-01 --end-date 2026-02-10 --filter-type rollups --write-raw-manifest --write-processed-manifest --write-sample`
+  - Artifacts:
+    - `data/raw/l2beat/2026-02-10/...` (table + project charts),
+    - `data/raw_manifest/l2beat_2026-02-10.json`,
+    - `data/processed/l2beat/l2beat_costs_daily.parquet`,
+    - `data/processed_manifest/l2beat_costs_daily_2026-02-10.json`,
+    - `data/samples/l2beat/l2beat_costs_daily_sample.csv`,
+    - `data/samples/l2beat/README.md` updated with canonical command + schema index mapping.
+
+- 2026-02-10: Gate/test runs:
+  - `make test` passed.
+  - `make gate` failed on pre-existing unrelated processed manifests requiring missing files under:
+    - `data/processed/onchain/...`
+    - `data/processed/panels/...`
+  - Those paths are outside this task's `allowed_paths`; cannot remediate within T083 scope. `@human` needed to unblock gate strategy in this environment/worktree.
+
+
+- 2026-02-10: Judge: gates ok; ownership ok. Review log: /tmp/swarm-worktrees/wt-T083/data/tmp/swarm_logs/T083_20260210T003111Z_judge_review.txt

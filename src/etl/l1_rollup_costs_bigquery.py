@@ -38,6 +38,9 @@ from src.etl.offchain.files import ensure_dir, write_text_append_only  # noqa: E
 RAW_SOURCE_NAME = "bq_ethereum_rollup_costs"
 BQ_BLOCKS_TABLE = "bigquery-public-data.crypto_ethereum.blocks"
 BQ_TXS_TABLE = "bigquery-public-data.crypto_ethereum.transactions"
+# `bq query` defaults to max_rows=100, which silently truncates CSV exports.
+# Use a high cap so daily outputs/manifests reflect full query results.
+BQ_QUERY_MAX_ROWS = "1000000000"
 
 
 def _repo_root() -> Path:
@@ -429,7 +432,15 @@ ORDER BY date_utc, rollup_id
 
 
 def _run_bq_query(*, sql: str, project_id: str | None, location: str | None) -> tuple[str, str]:
-    cmd = ["bq", "--quiet", "query", "--use_legacy_sql=false", "--format=csv"]
+    cmd = [
+        "bq",
+        "--quiet",
+        "query",
+        "--use_legacy_sql=false",
+        "--format=csv",
+        "--max_rows",
+        BQ_QUERY_MAX_ROWS,
+    ]
     if project_id:
         cmd.extend(["--project_id", project_id])
     if location:
@@ -452,7 +463,15 @@ def _run_bq_query(*, sql: str, project_id: str | None, location: str | None) -> 
 
 
 def _run_bq_query_prettyjson(*, sql: str, project_id: str | None, location: str | None) -> list[dict[str, Any]]:
-    cmd = ["bq", "--quiet", "query", "--use_legacy_sql=false", "--format=prettyjson"]
+    cmd = [
+        "bq",
+        "--quiet",
+        "query",
+        "--use_legacy_sql=false",
+        "--format=prettyjson",
+        "--max_rows",
+        BQ_QUERY_MAX_ROWS,
+    ]
     if project_id:
         cmd.extend(["--project_id", project_id])
     if location:

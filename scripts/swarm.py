@@ -22,6 +22,7 @@ Safety:
 from __future__ import annotations
 
 import argparse
+import ast
 import dataclasses
 import datetime as _dt
 import hashlib
@@ -35,9 +36,23 @@ import sys
 import time
 from typing import Any, Iterable
 
+# Keep swarm runtime deterministic and avoid transient bytecode artifacts.
+sys.dont_write_bytecode = True
+
 
 VALID_TASK_STATES = {"backlog", "active", "blocked", "ready_for_review", "done"}
 VALID_TASK_PRIORITIES = {"low", "medium", "high"}
+
+# Gate families that must always block task promotion, regardless of path scope.
+QUALITY_GATES_ALWAYS_BLOCK = {
+    "protocol_complete",
+    "project_contract",
+    "rollup_registry_integrity",
+    "contract_change_discipline",
+    "registry_change_discipline",
+}
+RUNTIME_IGNORED_ROOTS = ("data/raw/", "data/processed/")
+WORKER_EDITABLE_TASK_SECTIONS = {"Status", "Notes / Decisions"}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -365,6 +380,21 @@ def claimed_task_ids(remote: str, base_branch: str) -> set[str]:
     return claimed
 
 
+def _active_claimed_task_ids(*, repo: Path, claimed_ids: set[str]) -> set[str]:
+    out: set[str] = set()
+    for tid in claimed_ids:
+        tf = _find_task_file_anywhere(tid, repo)
+        if tf is None:
+            continue
+        try:
+            t = load_task(tf)
+        except Exception:
+            continue
+        if t.state == "active":
+            out.add(tid)
+    return out
+
+
 def ready_backlog_tasks(*, done_ids: set[str], claimed_ids: set[str]) -> list[Task]:
     tasks = [t for t in list_tasks(task_dir("backlog")) if t.state == "backlog"]
     ready: list[Task] = []
@@ -383,8 +413,12 @@ def ready_backlog_tasks(*, done_ids: set[str], claimed_ids: set[str]) -> list[Ta
 def _compute_workstream_locks(*, repo: Path, claimed_ids: set[str]) -> tuple[set[str], set[str]]:
     """Return (locked_workstreams, parallel_only_workstreams).
 
-    - If any claimed task in a workstream is not parallel_ok, the workstream is locked.
-    - If only parallel_ok tasks are claimed for a workstream, the workstream is parallel-only.
+    Only actively running tasks should lock scheduler capacity for a workstream.
+    Claimed-but-non-active tasks (e.g., stale backlog branches, blocked tasks, merged-but-kept
+    local branches) must not stall unattended scheduling.
+
+    - If any active claimed task in a workstream is not parallel_ok, the workstream is locked.
+    - If only active parallel_ok tasks are claimed for a workstream, the workstream is parallel-only.
     """
     locked: set[str] = set()
     parallel_only: set[str] = set()
@@ -395,6 +429,8 @@ def _compute_workstream_locks(*, repo: Path, claimed_ids: set[str]) -> tuple[set
         try:
             t = load_task(tf)
         except Exception:
+            continue
+        if t.state != "active":
             continue
         if t.parallel_ok:
             parallel_only.add(t.workstream)
@@ -655,6 +691,60 @@ def _git_current_branch(cwd: Path) -> str:
     return (cp.stdout or "").strip()
 
 
+def _git_config_get(cwd: Path, key: str) -> str | None:
+    cp = _run(["git", "config", "--get", key], cwd=cwd, capture=True, check=False)
+    if cp.returncode != 0:
+        return None
+    value = (cp.stdout or "").strip()
+    return value if value else None
+
+
+def _git_identity_missing(cwd: Path) -> list[str]:
+    missing: list[str] = []
+    if _git_config_get(cwd, "user.name") is None:
+        missing.append("user.name")
+    if _git_config_get(cwd, "user.email") is None:
+        missing.append("user.email")
+    return missing
+
+
+def _require_git_identity(cwd: Path) -> None:
+    missing = _git_identity_missing(cwd)
+    if missing:
+        raise SystemExit(
+            "Missing git identity for unattended swarm run. "
+            f"Configure {', '.join(missing)} in this repo before starting."
+        )
+
+
+def _git_commit_and_push(*, cwd: Path, message: str, remote: str, strict: bool) -> None:
+    cp_commit = _run(["git", "commit", "-m", message], cwd=cwd, capture=True, check=False)
+    if cp_commit.returncode != 0:
+        output = (cp_commit.stdout or "").strip()
+        msg = f"git commit failed rc={cp_commit.returncode} message={message}"
+        if output:
+            msg = f"{msg}; output_tail={output[-800:]}"
+        if strict:
+            raise SystemExit(msg)
+        print(f"[warn] {msg}", file=sys.stderr)
+        return
+
+    cp_push = _run(
+        ["git", "push", "-u", remote, _git_current_branch(cwd)],
+        cwd=cwd,
+        capture=True,
+        check=False,
+    )
+    if cp_push.returncode != 0:
+        output = (cp_push.stdout or "").strip()
+        msg = f"git push failed rc={cp_push.returncode} branch={_git_current_branch(cwd)} remote={remote}"
+        if output:
+            msg = f"{msg}; output_tail={output[-800:]}"
+        if strict:
+            raise SystemExit(msg)
+        print(f"[warn] {msg}", file=sys.stderr)
+
+
 def _git_has_changes(cwd: Path) -> bool:
     cp = _run(["git", "status", "--porcelain"], cwd=cwd, capture=True, check=True)
     return bool((cp.stdout or "").strip())
@@ -698,8 +788,249 @@ def _path_matches_prefix(*, path: str, prefixes: Iterable[str]) -> bool:
     return False
 
 
+def _expand_ignored_status_path(*, repo_root: Path, rel_path: str) -> list[str]:
+    """Expand coarse ignored roots (`data/raw/`, `data/processed/`) to child paths.
+
+    `git status --ignored=matching` reports ignored directory roots, which can cause
+    broad ownership violations (`data/raw/`) even when a task wrote only one allowed
+    source subtree. Expanding to one-level children keeps checks strict but scoped.
+    """
+    norm = rel_path.replace("\\", "/").strip()
+    if not norm:
+        return []
+
+    root_match = any(
+        norm == root.rstrip("/") or norm == root
+        for root in RUNTIME_IGNORED_ROOTS
+    )
+    if not root_match:
+        return [norm]
+
+    root_path = (repo_root / norm).resolve()
+    try:
+        if root_path.is_dir():
+            children: list[str] = []
+            repo_root_resolved = repo_root.resolve()
+            for child in sorted(root_path.iterdir(), key=lambda p: p.name):
+                try:
+                    rel = child.resolve().relative_to(repo_root_resolved).as_posix()
+                except ValueError:
+                    continue
+                if child.is_dir():
+                    rel = rel.rstrip("/") + "/"
+                children.append(rel)
+            if children:
+                return children
+    except (Exception, SystemExit):
+        pass
+
+    return [norm]
+
+
+def _is_ephemeral_runtime_path(path: str) -> bool:
+    norm = path.replace("\\", "/").strip("/")
+    parts = [p for p in norm.split("/") if p]
+    if "__pycache__" in parts:
+        return True
+    if norm.endswith(".pyc") or norm.endswith(".pyo"):
+        return True
+    return False
+
+
+def _python_runtime_env() -> dict[str, str]:
+    env = dict(os.environ)
+    # Prevent transient `__pycache__` / `.pyc` writes from polluting ownership checks.
+    env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+    return env
+
+
+def _runtime_side_effect_prefixes_from_allowed_paths(allowed_paths: list[str]) -> set[str]:
+    prefixes: set[str] = set()
+    for raw in allowed_paths:
+        norm = raw.replace("\\", "/").strip()
+        if not norm:
+            continue
+        if norm.startswith("data/raw/") or norm.startswith("data/processed/"):
+            prefixes.add(norm.rstrip("/") + "/")
+            continue
+        if norm.startswith("data/raw_manifest/"):
+            tail = Path(norm).name
+            if tail.endswith("_"):
+                source_key = tail[:-1].strip()
+                if source_key:
+                    prefixes.add(f"data/raw/{source_key}/")
+    return prefixes
+
+
+def _is_allowed_runtime_side_effect(*, path: str, runtime_prefixes: Iterable[str]) -> bool:
+    norm = path.replace("\\", "/").strip("/")
+    if not (
+        norm == "data/raw"
+        or norm.startswith("data/raw/")
+        or norm == "data/processed"
+        or norm.startswith("data/processed/")
+    ):
+        return False
+
+    # `git status --ignored=matching` can report coarse roots (`data/raw/`,
+    # `data/processed/`) on first creation. Allow these only when there is at
+    # least one scoped runtime prefix under the same root.
+    if norm in {"data/raw", "data/processed"}:
+        return any(
+            pfx.replace("\\", "/").strip("/").startswith(norm + "/")
+            for pfx in runtime_prefixes
+        )
+
+    for prefix in runtime_prefixes:
+        pfx = prefix.replace("\\", "/").strip("/")
+        if not pfx:
+            continue
+        if norm == pfx or norm.startswith(pfx + "/"):
+            return True
+    return False
+
+
+def _extract_candidate_paths(text: str) -> list[str]:
+    # Heuristic path extraction from gate failure strings.
+    # Captures tokens like `data/foo/bar.csv` but avoids URLs.
+    candidates: list[str] = []
+    for token in re.findall(r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+/?", text):
+        clean = token.strip().strip("'\"").rstrip(".,;:)]}")
+        if not clean or clean.startswith("http://") or clean.startswith("https://"):
+            continue
+        candidates.append(clean)
+    return sorted(set(candidates))
+
+
+def _parse_quality_gate_failures(output: str) -> list[dict[str, object]]:
+    failures: list[dict[str, object]] = []
+    line_re = re.compile(r"^\[(?P<name>[a-z0-9_]+)\]\s+ok=(?P<ok>True|False)\s+details=(?P<details>.*)$")
+    for line in output.splitlines():
+        m = line_re.match(line.strip())
+        if m is None:
+            continue
+        if m.group("ok") != "False":
+            continue
+        details_raw = m.group("details").strip()
+        details_obj: object = None
+        try:
+            details_obj = ast.literal_eval(details_raw)
+        except Exception:
+            details_obj = None
+        failures.append(
+            {
+                "gate": m.group("name"),
+                "details": details_obj,
+                "details_raw": details_raw,
+            }
+        )
+    return failures
+
+
+def _classify_quality_gate_failures(
+    *,
+    failures: list[dict[str, object]],
+    allowed_paths: list[str],
+    disallowed_paths: list[str],
+    task_file_paths: set[str],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Return (blocking_failures, warning_failures).
+
+    Rule:
+    - Protocol/contract/registry gate families always block.
+    - Other quality-gate failures block only when failure paths overlap task scope.
+    - Out-of-scope failures become non-blocking warnings.
+    - Unscoped/opaque failures fail closed (blocking).
+    """
+    blocking: list[dict[str, object]] = []
+    warnings: list[dict[str, object]] = []
+    runtime_prefixes = _runtime_side_effect_prefixes_from_allowed_paths(allowed_paths)
+
+    for item in failures:
+        gate_name = str(item.get("gate") or "")
+        details = item.get("details")
+        details_raw = str(item.get("details_raw") or "")
+
+        if gate_name in QUALITY_GATES_ALWAYS_BLOCK:
+            blocking.append(
+                {
+                    "gate": gate_name,
+                    "reason": "critical_quality_gate",
+                    "summary": details_raw,
+                }
+            )
+            continue
+
+        failure_messages: list[str] = []
+        if isinstance(details, dict):
+            raw_failures = details.get("failures")
+            if isinstance(raw_failures, list):
+                failure_messages = [str(x) for x in raw_failures if isinstance(x, str)]
+
+        if not failure_messages:
+            blocking.append(
+                {
+                    "gate": gate_name,
+                    "reason": "unscoped_quality_gate_failure",
+                    "summary": details_raw,
+                }
+            )
+            continue
+
+        any_in_scope = False
+        path_count = 0
+        for failure_message in failure_messages:
+            paths = _extract_candidate_paths(failure_message)
+            path_count += len(paths)
+            for p in paths:
+                ok, _ = _path_is_allowed(
+                    path=p,
+                    allowed_paths=allowed_paths,
+                    disallowed_paths=disallowed_paths,
+                    task_file_paths=task_file_paths,
+                )
+                if not ok and _is_allowed_runtime_side_effect(path=p, runtime_prefixes=runtime_prefixes):
+                    ok = True
+                if ok:
+                    any_in_scope = True
+                    break
+            if any_in_scope:
+                break
+
+        if any_in_scope:
+            blocking.append(
+                {
+                    "gate": gate_name,
+                    "reason": "quality_gate_failure_in_scope",
+                    "summary": details_raw,
+                }
+            )
+            continue
+
+        if path_count == 0:
+            blocking.append(
+                {
+                    "gate": gate_name,
+                    "reason": "quality_gate_failure_without_paths",
+                    "summary": details_raw,
+                }
+            )
+            continue
+
+        warnings.append(
+            {
+                "gate": gate_name,
+                "reason": "quality_gate_failure_out_of_scope",
+                "summary": details_raw,
+            }
+        )
+
+    return blocking, warnings
+
+
 def _filesystem_entry_fingerprint(*, repo_root: Path, rel_path: str, skip_prefixes: Iterable[str]) -> str:
-    path = (repo_root / rel_path).resolve()
+    repo_root_resolved = repo_root.resolve()
+    path = (repo_root_resolved / rel_path).resolve()
     try:
         if not path.exists() and not path.is_symlink():
             return "missing"
@@ -717,7 +1048,7 @@ def _filesystem_entry_fingerprint(*, repo_root: Path, rel_path: str, skip_prefix
             digest = hashlib.sha256()
             for root, dirnames, filenames in os.walk(path, topdown=True, followlinks=False):
                 root_path = Path(root)
-                root_rel = root_path.relative_to(repo_root).as_posix()
+                root_rel = root_path.relative_to(repo_root_resolved).as_posix()
                 if _path_matches_prefix(path=root_rel, prefixes=skip_prefixes):
                     dirnames[:] = []
                     continue
@@ -725,7 +1056,7 @@ def _filesystem_entry_fingerprint(*, repo_root: Path, rel_path: str, skip_prefix
                 kept_dirs: list[str] = []
                 for d in sorted(dirnames):
                     d_path = root_path / d
-                    d_rel = d_path.relative_to(repo_root).as_posix()
+                    d_rel = d_path.relative_to(repo_root_resolved).as_posix()
                     if _path_matches_prefix(path=d_rel, prefixes=skip_prefixes):
                         continue
                     kept_dirs.append(d)
@@ -738,7 +1069,7 @@ def _filesystem_entry_fingerprint(*, repo_root: Path, rel_path: str, skip_prefix
 
                 for f in sorted(filenames):
                     f_path = root_path / f
-                    f_rel = f_path.relative_to(repo_root).as_posix()
+                    f_rel = f_path.relative_to(repo_root_resolved).as_posix()
                     if _path_matches_prefix(path=f_rel, prefixes=skip_prefixes):
                         continue
                     try:
@@ -777,7 +1108,14 @@ def _snapshot_untracked_ignored_fingerprints(
             continue
         if _path_matches_prefix(path=p, prefixes=skip_prefixes):
             continue
-        out[p] = _filesystem_entry_fingerprint(repo_root=cwd, rel_path=p, skip_prefixes=skip_prefixes)
+        for expanded_path in _expand_ignored_status_path(repo_root=cwd, rel_path=p):
+            if _path_matches_prefix(path=expanded_path, prefixes=skip_prefixes):
+                continue
+            out[expanded_path] = _filesystem_entry_fingerprint(
+                repo_root=cwd,
+                rel_path=expanded_path,
+                skip_prefixes=skip_prefixes,
+            )
     return out
 
 
@@ -838,6 +1176,30 @@ def _collect_changed_paths(
     return delta_entries, sorted(changed_paths)
 
 
+def _normalize_task_text_outside_worker_sections(text: str) -> str:
+    """Return a normalized view of task text that ignores worker-editable sections.
+
+    Workers are allowed to edit only `## Status` and `## Notes / Decisions`.
+    Any mutation outside those sections is considered a control-plane violation.
+    """
+    lines = text.splitlines()
+    out: list[str] = []
+    in_allowed_section = False
+    for line in lines:
+        match = re.match(r"^##\s+(.*)\s*$", line)
+        if match is not None:
+            heading = match.group(1).strip()
+            in_allowed_section = heading in WORKER_EDITABLE_TASK_SECTIONS
+            out.append(line)
+            if in_allowed_section:
+                out.append(f"<<SECTION:{heading}>>")
+            continue
+        if in_allowed_section:
+            continue
+        out.append(line)
+    return "\n".join(out)
+
+
 def _path_is_allowed(
     *,
     path: str,
@@ -846,6 +1208,8 @@ def _path_is_allowed(
     task_file_paths: set[str],
 ) -> tuple[bool, str | None]:
     norm = path.replace("\\", "/")
+    if _is_ephemeral_runtime_path(norm):
+        return True, None
 
     # Enforce control-plane governance:
     # - allow only the current task file, and handoff notes
@@ -974,7 +1338,6 @@ def _codex_review_cmd(
     *,
     prompt: str,
     unattended: bool,
-    base_branch: str,
     workdir: Path,
 ) -> list[str]:
     if _which_or_none("codex") is None:
@@ -982,7 +1345,8 @@ def _codex_review_cmd(
     cmd: list[str] = ["codex"]
     if unattended:
         cmd.extend(["-a", "never"])
-    cmd.extend(["review", "--base", base_branch, "--uncommitted", prompt])
+    # Review the current uncommitted task diff only.
+    cmd.extend(["review", "--uncommitted", prompt])
     return cmd
 
 
@@ -1253,10 +1617,26 @@ def _maybe_spawn_repairs(args: argparse.Namespace, repo: Path) -> None:
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
+    repo = _repo_root()
     done_ids = done_task_ids()
     claimed_ids = claimed_task_ids(args.remote, args.base_branch)
+    active_claimed_ids = _active_claimed_task_ids(repo=repo, claimed_ids=claimed_ids)
+    # Exclude all claimed tasks from "ready" to avoid re-scheduling the same task
+    # while a branch/PR is already in flight.
     ready = ready_backlog_tasks(done_ids=done_ids, claimed_ids=claimed_ids)
-    print(json.dumps({"done": sorted(done_ids), "claimed": sorted(claimed_ids), "ready": [dataclasses.asdict(t) for t in ready]}, indent=2, sort_keys=True, default=str))
+    print(
+        json.dumps(
+            {
+                "done": sorted(done_ids),
+                "claimed": sorted(claimed_ids),
+                "claimed_active": sorted(active_claimed_ids),
+                "ready": [dataclasses.asdict(t) for t in ready],
+            },
+            indent=2,
+            sort_keys=True,
+            default=str,
+        )
+    )
     return 0
 
 
@@ -1264,9 +1644,13 @@ def cmd_tick(args: argparse.Namespace) -> int:
     repo = _repo_root()
     if args.unattended:
         _require_unattended_ack()
+        _require_git_identity(repo)
 
     done_ids = done_task_ids()
     claimed_ids = claimed_task_ids(args.remote, args.base_branch)
+    active_claimed_ids = _active_claimed_task_ids(repo=repo, claimed_ids=claimed_ids)
+    # Exclude all claimed tasks from scheduling. Active-state detection is best-effort
+    # across worktrees, while claim sources (open PRs/branches) are reliable.
     ready = ready_backlog_tasks(done_ids=done_ids, claimed_ids=claimed_ids)
     locked_workstreams, parallel_only_workstreams = _compute_workstream_locks(repo=repo, claimed_ids=claimed_ids)
     ready = _apply_workstream_concurrency_filters(
@@ -1374,6 +1758,7 @@ def cmd_tmux_start(args: argparse.Namespace) -> int:
     repo = _repo_root()
     if args.unattended:
         _require_unattended_ack()
+        _require_git_identity(repo)
     tmux_ensure_session(args.tmux_session, repo)
     if args.unattended:
         # Robust tmux env propagation so unattended mode works inside tmux windows.
@@ -1438,6 +1823,7 @@ def cmd_loop(args: argparse.Namespace) -> int:
     repo = _repo_root()
     if args.unattended:
         _require_unattended_ack()
+        _require_git_identity(repo)
     interval = max(5, int(args.interval_seconds))
     print(f"Swarm loop started (interval={interval}s). Repo: {repo}")
     while True:
@@ -1468,6 +1854,7 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     # Guardrails for unattended mode.
     if args.unattended:
         _require_unattended_ack()
+        _require_git_identity(repo)
         print(
             "WARNING: --unattended disables approval prompts. ONLY run in an external sandbox with no secrets (see AGENTS.md).",
             file=sys.stderr,
@@ -1488,14 +1875,23 @@ def cmd_run_task(args: argparse.Namespace) -> int:
             note_line=f"Claimed by swarm runner; starting worker (branch: {_git_current_branch(repo)}).",
         )
         _run(["git", "add", str(task_file)], cwd=repo)
-        _run(["git", "commit", "-m", f"{task.task_id}: claim (active)"], cwd=repo, check=False)
-        _run(["git", "push", "-u", args.remote, _git_current_branch(repo)], cwd=repo, check=False)
+        _git_commit_and_push(
+            cwd=repo,
+            message=f"{task.task_id}: claim (active)",
+            remote=args.remote,
+            strict=args.unattended,
+        )
 
     # Worker: Codex exec
     logs_dir = repo / "data" / "tmp" / "swarm_logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     worker_last_msg = logs_dir / f"{task.task_id}_{_utc_timestamp_compact()}_worker_last_message.txt"
     runtime_mutation_skip_prefixes = {logs_dir.relative_to(repo).as_posix()}
+    runtime_env = _python_runtime_env()
+    task_rel = task_file.relative_to(repo).as_posix()
+    task_paths = {task_rel}
+    runtime_allowed_prefixes = _runtime_side_effect_prefixes_from_allowed_paths(task.allowed_paths)
+    task_text_before_worker = _read_text(task_file)
 
     status_before_worker = _git_status_entries(repo)
     untracked_ignored_before = _snapshot_untracked_ignored_fingerprints(
@@ -1534,7 +1930,7 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     )
     worker_timeout = int(args.max_worker_seconds) if args.max_worker_seconds else None
     try:
-        worker_cp = _run(worker_cmd, cwd=repo, check=False, timeout_seconds=worker_timeout)
+        worker_cp = _run(worker_cmd, cwd=repo, check=False, env=runtime_env, timeout_seconds=worker_timeout)
     except subprocess.TimeoutExpired:
         timeout_note = (
             f"Worker timed out after {worker_timeout}s; leaving task active. "
@@ -1543,8 +1939,12 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         _update_task_status_and_notes(task_path=task_file, new_state="active", note_line=timeout_note)
         if _git_has_changes(repo):
             _run(["git", "add", "-A"], cwd=repo)
-            _run(["git", "commit", "-m", f"{task.task_id}: worker timeout"], cwd=repo, check=False)
-            _run(["git", "push", "-u", args.remote, _git_current_branch(repo)], cwd=repo, check=False)
+            _git_commit_and_push(
+                cwd=repo,
+                message=f"{task.task_id}: worker timeout",
+                remote=args.remote,
+                strict=args.unattended,
+            )
         print(json.dumps({"task_id": task.task_id, "state": "active", "error": "worker_timeout"}, indent=2))
         return 1
 
@@ -1556,8 +1956,12 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         _update_task_status_and_notes(task_path=task_file, new_state="blocked", note_line=note)
         if _git_has_changes(repo):
             _run(["git", "add", "-A"], cwd=repo)
-            _run(["git", "commit", "-m", f"{task.task_id}: blocked ({reason})"], cwd=repo, check=False)
-            _run(["git", "push", "-u", args.remote, _git_current_branch(repo)], cwd=repo, check=False)
+            _git_commit_and_push(
+                cwd=repo,
+                message=f"{task.task_id}: blocked ({reason})",
+                remote=args.remote,
+                strict=args.unattended,
+            )
         print(
             json.dumps(
                 {
@@ -1577,13 +1981,50 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     # Judge: run declared gates (deterministic) + enforce path ownership
     gate_ok = True
     gate_outputs: list[dict[str, Any]] = []
+    gate_blocking_failures: list[dict[str, object]] = []
+    gate_warning_failures: list[dict[str, object]] = []
     for gate in task.gates:
         # gates are declared in task files; run as shell for simplicity
         print(f"[judge] running gate: {gate}")
-        cp = subprocess.run(gate, cwd=str(repo), shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        gate_outputs.append({"command": gate, "returncode": cp.returncode, "output": (cp.stdout or "")[-2000:]})
+        cp = subprocess.run(
+            gate,
+            cwd=str(repo),
+            shell=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=runtime_env,
+        )
+        classification = "pass"
         if cp.returncode != 0:
-            gate_ok = False
+            classification = "blocking"
+            gate_failed = {"gate": gate, "reason": "gate_command_failed", "summary": f"rc={cp.returncode}"}
+            quality_failures = _parse_quality_gate_failures(cp.stdout or "")
+            if quality_failures:
+                blocking, warnings = _classify_quality_gate_failures(
+                    failures=quality_failures,
+                    allowed_paths=task.allowed_paths,
+                    disallowed_paths=task.disallowed_paths,
+                    task_file_paths=task_paths,
+                )
+                gate_blocking_failures.extend(blocking)
+                gate_warning_failures.extend(warnings)
+                if not blocking and warnings:
+                    classification = "warning"
+                else:
+                    gate_blocking_failures.append(gate_failed)
+            else:
+                gate_blocking_failures.append(gate_failed)
+            gate_ok = gate_ok and classification != "blocking"
+
+        gate_outputs.append(
+            {
+                "command": gate,
+                "returncode": cp.returncode,
+                "classification": classification,
+                "output": (cp.stdout or "")[-2000:],
+            }
+        )
 
     status_after_worker = _git_status_entries(repo)
     untracked_ignored_after = _snapshot_untracked_ignored_fingerprints(
@@ -1598,10 +2039,20 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         untracked_ignored_after=untracked_ignored_after,
         skip_prefixes=runtime_mutation_skip_prefixes,
     )
-    task_rel = task_file.relative_to(repo).as_posix()
-    task_paths = {task_rel}
     ownership_ok = True
     ownership_failures: list[dict[str, str]] = []
+    task_text_after_worker = _read_text(task_file) if task_file.exists() else ""
+    if _normalize_task_text_outside_worker_sections(task_text_before_worker) != _normalize_task_text_outside_worker_sections(
+        task_text_after_worker
+    ):
+        ownership_ok = False
+        ownership_failures.append(
+            {
+                "path": task_rel,
+                "reason": "task_file_sections_modified_outside_status_notes",
+            }
+        )
+
     for entry in status_entries:
         xy = entry.get("xy", "")
         p = entry.get("path", "")
@@ -1619,6 +2070,9 @@ def cmd_run_task(args: argparse.Namespace) -> int:
             disallowed_paths=task.disallowed_paths,
             task_file_paths=set(task_paths),
         )
+        if not ok and _is_allowed_runtime_side_effect(path=p, runtime_prefixes=runtime_allowed_prefixes):
+            ok = True
+            reason = None
         if not ok:
             ownership_ok = False
             ownership_failures.append({"path": p, "reason": reason or "unknown"})
@@ -1637,7 +2091,6 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         review_cmd = _codex_review_cmd(
             prompt=review_prompt,
             unattended=args.unattended,
-            base_branch=args.base_branch,
             workdir=repo,
         )
         try:
@@ -1646,18 +2099,26 @@ def cmd_run_task(args: argparse.Namespace) -> int:
                 cwd=repo,
                 capture=True,
                 check=False,
+                env=runtime_env,
                 timeout_seconds=int(args.max_review_seconds) if args.max_review_seconds else None,
             )
         except subprocess.TimeoutExpired:
             cp = subprocess.CompletedProcess(args=review_cmd, returncode=124, stdout="")
         review_path.write_text(cp.stdout or "", encoding="utf-8")
-    except Exception:
+    except (Exception, SystemExit):
         pass
+
+    gate_warning_names = sorted({str(x.get("gate")) for x in gate_warning_failures if x.get("gate")})
 
     # Decide new state
     if gate_ok and ownership_ok:
         new_state = args.final_state
         note = f"Judge: gates ok; ownership ok. Review log: {review_path.as_posix()}"
+        if gate_warning_names:
+            note = (
+                f"{note} Non-blocking out-of-scope gate warnings: "
+                f"{', '.join(gate_warning_names)}."
+            )
     else:
         new_state = "blocked"
         why: list[str] = []
@@ -1666,6 +2127,8 @@ def cmd_run_task(args: argparse.Namespace) -> int:
         if not ownership_ok:
             why.append("path_ownership_violation")
         note = f"@human Judge blocked: {', '.join(why)}. Review log: {review_path.as_posix()}"
+        if gate_warning_names:
+            note = f"{note} Non-blocking out-of-scope gate warnings also present: {', '.join(gate_warning_names)}."
     if args.repair_context:
         note = f"{note} Repair context: {args.repair_context}"
 
@@ -1675,19 +2138,36 @@ def cmd_run_task(args: argparse.Namespace) -> int:
     # Commit + push
     if _git_has_changes(repo):
         _run(["git", "add", "-A"], cwd=repo)
-        _run(["git", "commit", "-m", f"{task.task_id}: {new_state}"], cwd=repo, check=False)
-        _run(["git", "push", "-u", args.remote, _git_current_branch(repo)], cwd=repo, check=False)
+        _git_commit_and_push(
+            cwd=repo,
+            message=f"{task.task_id}: {new_state}",
+            remote=args.remote,
+            strict=args.unattended,
+        )
 
     # PR (optional)
     if args.create_pr:
         pr_title = f"{task.task_id}: {task.title}"
+        gate_lines = [
+            f"- `{g['command']}` (rc={g['returncode']}, class={g.get('classification', 'unknown')})"
+            for g in gate_outputs
+        ]
+        warning_lines = [
+            f"- `{str(w.get('gate') or 'unknown')}` ({str(w.get('reason') or 'warning')})"
+            for w in gate_warning_failures
+        ]
         pr_body = "\n".join(
             [
                 f"Task: `{task_file.as_posix()}`",
                 f"State: `{new_state}`",
                 "",
                 "Gates run:",
-                *(f"- `{g['command']}` (rc={g['returncode']})" for g in gate_outputs),
+                *gate_lines,
+                *(
+                    ["", "Non-blocking gate warnings (out-of-scope):", *warning_lines]
+                    if warning_lines
+                    else []
+                ),
                 "",
                 "Notes:",
                 "- This PR was generated by the swarm supervisor (unattended).",
@@ -1705,6 +2185,8 @@ def cmd_run_task(args: argparse.Namespace) -> int:
                 "state": new_state,
                 "branch": _git_current_branch(repo),
                 "gate_ok": gate_ok,
+                "gate_blocking_failures": gate_blocking_failures,
+                "gate_warning_failures": gate_warning_failures,
                 "ownership_ok": ownership_ok,
                 "ownership_failures": ownership_failures,
                 "review_log": str(review_path),

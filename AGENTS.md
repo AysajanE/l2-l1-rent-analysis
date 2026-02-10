@@ -12,6 +12,11 @@ Every agent run must declare ONE role in its first message and behave accordingl
 
 Default role if unclear: **Worker**.
 
+## 0A) Instruction resolution (required)
+- Instruction discovery is path-based from repo root to current directory.
+- Root `AGENTS.md` is the project constitution; deeper `AGENTS.md` files are addenda.
+- If two rules conflict, the closest directory `AGENTS.md` wins unless it violates protocol/contract locks.
+
 ## 1) Source-of-truth precedence (do not improvise)
 When guidance conflicts, follow this order:
 
@@ -30,6 +35,8 @@ If a conflict remains: STOP and mark the task `blocked` with `@human`.
 3) **Never change protocol definitions** unless your task is in Workstream W0 and explicitly authorizes it.
 4) **Raw snapshots are append-only.** Never overwrite `data/raw/` artifacts in-place.
 5) **No “helpful refactors”** outside task scope.
+6) **No surprise dependencies.** Do not add/upgrade dependencies unless explicitly required by task/contracts.
+7) **Traceability and reproducibility are required.** Every non-trivial output must be reproducible from committed code + documented commands.
 
 ## 3) Control-plane rules (.orchestrator)
 - **Only the Planner moves tasks** between `.orchestrator/{backlog,active,ready_for_review,blocked,done}/`.
@@ -63,6 +70,14 @@ Put this summary into:
 - the task file `## Notes / Decisions` (brief)
 - and `.orchestrator/handoff/H___*.md` (actionable, durable)
 
+If your task creates or updates research outputs under `reports/`, include or update task metadata with:
+- `task_id`
+- `contract references` (if applicable)
+- `timestamp_utc`
+- `git_commit`
+- exact reproduction command(s)
+- key inputs and outputs
+
 ## 6) Stop conditions (mark blocked with @human)
 Block immediately if:
 - you need to reinterpret metric definitions or inclusion rules
@@ -70,7 +85,15 @@ Block immediately if:
 - two data sources disagree beyond tolerance and protocol doesn’t specify priority
 - you must edit files outside your allowed paths to proceed
 - a gate fails and the fix requires changing protocol/registry/definitions
+- the task requires changing contract semantics, registry semantics, or schema compatibility without explicit authorization
+- reproducibility cannot be achieved with committed code and declared inputs
 
 ## 7) Safety boundary
 Unattended/autonomous shell execution is only allowed inside a sandboxed environment
 (devcontainer/VM/Codespaces) containing only this repo and no sensitive files.
+
+## 8) Minimum quality gates (when touching code)
+- Run `make gate`.
+- Run `make test`.
+- Run any additional task-declared gates/commands.
+- If a required gate cannot be run, record the reason in task notes and handoff.

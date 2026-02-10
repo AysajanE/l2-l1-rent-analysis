@@ -66,10 +66,27 @@ USD series are explicitly secondary in `docs/protocol.md`, but are useful for in
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: done
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to support secondary USD conversions and figures.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T085_prices_etl_eth_usd_daily_and_sample).
+
+
+- 2026-02-10: Implemented `src/etl/prices_fetch.py` source routing for `coingecko|cryptocompare|yahoo`, with automatic fallback from CoinGecko to CryptoCompare on 401/403 when no API key is provided. Raw snapshots now include `source`, `request_url`, `fetched_at_utc`, and nested `payload` metadata.
+- 2026-02-10: Generated ETH/USD daily series from 2022-01-01 through 2026-02-10 using CryptoCompare (`data/processed/prices/prices_daily.csv`, 1502 rows, required schema asserted in code).
+- 2026-02-10: Wrote append-only provenance artifacts:
+  - `data/raw_manifest/prices_2026-02-10.json` (input raw snapshot: `data/raw/prices/2026-02-10/cryptocompare/eth_usd_histoday.json`)
+  - `data/raw_manifest/prices_yahoo_probe_2026-02-10.json` (captures the earlier Yahoo probe snapshot path under `data/raw/prices/2026-02-10/`)
+  - `data/processed_manifest/prices_daily_2026-02-10.json` (input raw manifest + output hash for `data/processed/prices/prices_daily.csv`)
+- 2026-02-10: Refreshed canonical sample output at `data/samples/prices/prices_daily_sample.csv` (2024-02-20..2024-04-30, deterministic).
+- 2026-02-10: Gates run:
+  - `GIT_DIR=/tmp/wt-T085-git/.git GIT_WORK_TREE=/tmp/swarm-worktrees/wt-T085 GATE_BASE_REF=main make gate` (pass)
+  - `make test` (pass, 41 tests)
+- 2026-02-10: Limitation: task frontmatter lists a `.parquet` processed output path, but repo ETL currently uses stdlib-only CSV outputs (no parquet dependency/tooling present in environment).
+
+
+- 2026-02-10: Judge: gates ok; ownership ok. Review log: /tmp/swarm-worktrees/wt-T085/data/tmp/swarm_logs/T085_20260210T003845Z_judge_review.txt
