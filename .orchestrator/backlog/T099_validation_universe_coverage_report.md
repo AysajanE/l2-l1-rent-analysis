@@ -74,11 +74,35 @@ This report is informational (no new thresholds invented). It makes “how compl
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: done
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-05: Added per feedback “Medium-Priority Suggestions”: introduce an explicit universe coverage report task after registry seeding (T082) and on-chain attribution (T088).
 
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T099_validation_universe_coverage_report).
+
+- 2026-02-10: Implemented `src/validation/report_universe_coverage.py` and generated:
+  - `reports/validation/universe_coverage.json`
+  - `reports/validation/universe_coverage.md`
+- 2026-02-10: Script behavior:
+  - deterministic/offline validator with default `--sample` mode
+  - exit codes follow validation contract (`0` pass, `2` fail/inconsistency, `3` missing inputs/schema mismatch)
+  - strict JSON top-level keys: `ok`, `inputs`, `metrics`, `failures`
+  - computes registry readiness metrics (`in_scope_rollup_count`, address state counts, `total_address_count`)
+  - computes post-Dencun attribution coverage daily + aggregate (`sum_rollup_blob_gas_used / l1_blob_gas_used`) and blob-burn relation when available
+  - reports gap pointers (unknown/partial registry states, coverage-drop dates, missing-date gaps)
+- 2026-02-10: Reproduction commands:
+  - `python src/validation/report_universe_coverage.py`
+  - `python src/validation/report_universe_coverage.py --full` (requires processed on-chain/L1 inputs; returns exit `3` if missing)
+- 2026-02-10: Gates/tests run:
+  - `make gate` -> pass
+  - `make test` -> pass (`Ran 42 tests`, `OK`)
+- 2026-02-10: Assumptions/limitations:
+  - In sample mode, blob attribution coverage uses committed `data/samples/panels/daily_rollup_panel_v2_sample.csv` as fallback for both rollup blob usage and L1 blob baseline when dedicated sample decomposition/L1 blocks tables are absent.
+  - Optional Blobscan triangulation is computed when Blobscan sample/processed input is available.
+
+
+- 2026-02-10: Judge: gates ok; ownership ok. Review log: /tmp/swarm-worktrees/wt-T099/data/tmp/swarm_logs/T099_20260210T104755Z_judge_review.txt
