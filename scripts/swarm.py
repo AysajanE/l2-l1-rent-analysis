@@ -1621,7 +1621,9 @@ def cmd_plan(args: argparse.Namespace) -> int:
     done_ids = done_task_ids()
     claimed_ids = claimed_task_ids(args.remote, args.base_branch)
     active_claimed_ids = _active_claimed_task_ids(repo=repo, claimed_ids=claimed_ids)
-    ready = ready_backlog_tasks(done_ids=done_ids, claimed_ids=active_claimed_ids)
+    # Exclude all claimed tasks from "ready" to avoid re-scheduling the same task
+    # while a branch/PR is already in flight.
+    ready = ready_backlog_tasks(done_ids=done_ids, claimed_ids=claimed_ids)
     print(
         json.dumps(
             {
@@ -1647,7 +1649,9 @@ def cmd_tick(args: argparse.Namespace) -> int:
     done_ids = done_task_ids()
     claimed_ids = claimed_task_ids(args.remote, args.base_branch)
     active_claimed_ids = _active_claimed_task_ids(repo=repo, claimed_ids=claimed_ids)
-    ready = ready_backlog_tasks(done_ids=done_ids, claimed_ids=active_claimed_ids)
+    # Exclude all claimed tasks from scheduling. Active-state detection is best-effort
+    # across worktrees, while claim sources (open PRs/branches) are reliable.
+    ready = ready_backlog_tasks(done_ids=done_ids, claimed_ids=claimed_ids)
     locked_workstreams, parallel_only_workstreams = _compute_workstream_locks(repo=repo, claimed_ids=claimed_ids)
     ready = _apply_workstream_concurrency_filters(
         tasks=sorted(ready, key=lambda t: (_priority_rank(t.priority), t.task_id)),
