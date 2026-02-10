@@ -34,7 +34,23 @@ from src.etl.rpc_client import (  # noqa: E402
 )
 
 
-DENCUN_DATE_UTC = date(2024, 3, 13)  # per docs/protocol.md (locked)
+# Mainnet Dencun activation block (EIP-4844). Used for block-level blob field assertions.
+DENCUN_FORK_BLOCK_MAINNET = 19_426_587
+CANONICAL_SAMPLE_WINDOW_START = date(2024, 2, 20)
+CANONICAL_SAMPLE_WINDOW_END = date(2024, 4, 30)
+
+PROCESSED_FIELDNAMES = [
+    "block_number",
+    "block_hash",
+    "timestamp",
+    "timestamp_utc",
+    "date_utc",
+    "base_fee_per_gas_wei",
+    "gas_used",
+    "gas_limit",
+    "blob_gas_used",
+    "excess_blob_gas",
+]
 
 
 def _repo_root() -> Path:
@@ -207,72 +223,210 @@ def _to_date_utc(ts: int) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat()
 
 
-def write_processed_blocks_csv(*, blocks_dir: Path, out_csv: Path) -> dict[str, int]:
+def _require_hex_quantity(value: Any, *, field: str, block_number: int) -> int:
+    if value in (None, ""):
+        raise SystemExit(f"Block {block_number}: missing required field {field}")
+    try:
+        parsed = hex_quantity_to_int(value)
+    except Exception as exc:
+        raise SystemExit(f"Block {block_number}: invalid hex quantity for {field}: {value!r}") from exc
+    if parsed < 0:
+        raise SystemExit(f"Block {block_number}: negative value for {field}: {parsed}")
+    return int(parsed)
+
+
+def _require_non_empty_str(value: Any, *, field: str, block_number: int) -> str:
+    if not isinstance(value, str) or value.strip() == "":
+        raise SystemExit(f"Block {block_number}: missing/invalid required field {field}: {value!r}")
+    return value
+
+
+def _collect_processed_rows(*, blocks_dir: Path) -> tuple[list[dict[str, str]], dict[str, int]]:
     paths = _blocks_jsonl_paths(blocks_dir)
     if not paths:
         raise SystemExit(f"No raw block snapshot files found under: {blocks_dir}")
 
-    ensure_dir(out_csv.parent)
-    fieldnames = [
+    rows: list[dict[str, str]] = []
+    counts = {
+        "blocks_parsed": 0,
+        "blocks_post_dencun": 0,
+        "blocks_missing_blob_fields_post_dencun": 0,
+    }
+
+    for path in paths:
+        with path.open("r", encoding="utf-8") as rf:
+            for line_no, raw_line in enumerate(rf, start=1):
+                if not raw_line.strip():
+                    continue
+                try:
+                    block = json.loads(raw_line)
+                except json.JSONDecodeError as exc:
+                    raise SystemExit(f"{path}:{line_no}: invalid JSON in raw snapshot") from exc
+                if not isinstance(block, dict):
+                    raise SystemExit(f"{path}:{line_no}: expected object, got {type(block).__name__}")
+
+                block_number_raw = block.get("number")
+                if block_number_raw in (None, ""):
+                    raise SystemExit(f"{path}:{line_no}: block missing required field number")
+                try:
+                    block_number = hex_quantity_to_int(block_number_raw)
+                except Exception as exc:
+                    raise SystemExit(f"{path}:{line_no}: invalid block number quantity: {block_number_raw!r}") from exc
+                block_hash = _require_non_empty_str(block.get("hash"), field="hash", block_number=block_number)
+                ts = _require_hex_quantity(block.get("timestamp"), field="timestamp", block_number=block_number)
+                date_str = _to_date_utc(ts)
+                timestamp_utc = _to_iso_utc(ts)
+
+                base_fee_per_gas_wei = _require_hex_quantity(
+                    block.get("baseFeePerGas"), field="baseFeePerGas", block_number=block_number
+                )
+                gas_used = _require_hex_quantity(block.get("gasUsed"), field="gasUsed", block_number=block_number)
+                gas_limit = _require_hex_quantity(block.get("gasLimit"), field="gasLimit", block_number=block_number)
+
+                blob_gas_used = _parse_hex_optional(block.get("blobGasUsed"))
+                excess_blob_gas = _parse_hex_optional(block.get("excessBlobGas"))
+
+                is_post_dencun = block_number >= DENCUN_FORK_BLOCK_MAINNET
+                if is_post_dencun:
+                    counts["blocks_post_dencun"] += 1
+                    if blob_gas_used is None or excess_blob_gas is None:
+                        counts["blocks_missing_blob_fields_post_dencun"] += 1
+                        raise SystemExit(
+                            "Post-Dencun block missing required blob header fields "
+                            f"(provider not blob-ready?): block_number={block_number}"
+                        )
+
+                row = {
+                    "block_number": str(block_number),
+                    "block_hash": block_hash,
+                    "timestamp": str(ts),
+                    "timestamp_utc": timestamp_utc,
+                    "date_utc": date_str,
+                    "base_fee_per_gas_wei": str(base_fee_per_gas_wei),
+                    "gas_used": str(gas_used),
+                    "gas_limit": str(gas_limit),
+                    "blob_gas_used": str(blob_gas_used) if blob_gas_used is not None else "",
+                    "excess_blob_gas": str(excess_blob_gas) if excess_blob_gas is not None else "",
+                }
+                rows.append(row)
+                counts["blocks_parsed"] += 1
+
+    if counts["blocks_parsed"] == 0:
+        raise SystemExit(f"Raw snapshot contains no parseable blocks under: {blocks_dir}")
+    rows.sort(key=lambda r: int(r["block_number"]))
+    return rows, counts
+
+
+def _assert_processed_schema(rows: list[dict[str, str]]) -> None:
+    required_columns = {
         "block_number",
         "block_hash",
-        "timestamp",
         "timestamp_utc",
-        "date_utc",
         "base_fee_per_gas_wei",
         "gas_used",
-        "gas_limit",
         "blob_gas_used",
         "excess_blob_gas",
+    }
+    for i, row in enumerate(rows):
+        missing = sorted(required_columns - set(row.keys()))
+        if missing:
+            raise SystemExit(f"row {i}: missing required columns: {missing}")
+
+        try:
+            block_number = int(row["block_number"])
+        except ValueError as exc:
+            raise SystemExit(f"row {i}: invalid block_number: {row.get('block_number')!r}") from exc
+        if block_number < 0:
+            raise SystemExit(f"row {i}: negative block_number: {block_number}")
+
+        if row.get("block_hash", "").strip() == "":
+            raise SystemExit(f"row {i}: empty block_hash")
+
+        for col in ["base_fee_per_gas_wei", "gas_used", "timestamp"]:
+            try:
+                value = int(str(row.get(col, "")))
+            except ValueError as exc:
+                raise SystemExit(f"row {i}: invalid integer value for {col}: {row.get(col)!r}") from exc
+            if value < 0:
+                raise SystemExit(f"row {i}: negative value for {col}: {value}")
+
+        ts_utc = row.get("timestamp_utc", "")
+        if not isinstance(ts_utc, str) or ts_utc.strip() == "":
+            raise SystemExit(f"row {i}: missing timestamp_utc")
+        try:
+            datetime.fromisoformat(ts_utc.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise SystemExit(f"row {i}: invalid timestamp_utc: {ts_utc!r}") from exc
+
+        _parse_date(str(row.get("date_utc", "")), label="date_utc")
+
+        if block_number >= DENCUN_FORK_BLOCK_MAINNET:
+            for col in ["blob_gas_used", "excess_blob_gas"]:
+                raw = row.get(col, "")
+                if raw in ("", None):
+                    raise SystemExit(f"row {i}: missing required post-Dencun field {col}")
+                try:
+                    value = int(str(raw))
+                except ValueError as exc:
+                    raise SystemExit(f"row {i}: invalid integer for {col}: {raw!r}") from exc
+                if value < 0:
+                    raise SystemExit(f"row {i}: negative value for {col}: {value}")
+
+
+def _write_processed_table_csv_payload(*, out_path: Path, rows: list[dict[str, str]]) -> None:
+    ensure_dir(out_path.parent)
+    with out_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=PROCESSED_FIELDNAMES, lineterminator="\n")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({key: row.get(key, "") for key in PROCESSED_FIELDNAMES})
+
+
+def _build_sample_rows(rows: list[dict[str, str]]) -> tuple[list[dict[str, str]], dict[str, int | str]]:
+    window_rows = [
+        row
+        for row in rows
+        if CANONICAL_SAMPLE_WINDOW_START <= _parse_date(row["date_utc"], label="sample date_utc") <= CANONICAL_SAMPLE_WINDOW_END
     ]
-
-    counts = {"blocks_parsed": 0, "blocks_post_dencun": 0, "blocks_missing_blob_fields_post_dencun": 0}
-
-    with out_csv.open("w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
-        w.writeheader()
-
-        for path in paths:
-            with path.open("r", encoding="utf-8") as rf:
-                for raw_line in rf:
-                    if not raw_line.strip():
-                        continue
-                    block = json.loads(raw_line)
-                    if not isinstance(block, dict):
-                        continue
-                    bn_hex = block.get("number")
-                    if bn_hex is None:
-                        continue
-                    bn = hex_quantity_to_int(bn_hex)
-                    ts = _block_timestamp_utc(block)
-                    date_str = _to_date_utc(ts)
-                    is_post = _parse_date(date_str, label="date_utc") >= DENCUN_DATE_UTC
-                    if is_post:
-                        counts["blocks_post_dencun"] += 1
-                        if block.get("excessBlobGas") is None or block.get("blobGasUsed") is None:
-                            counts["blocks_missing_blob_fields_post_dencun"] += 1
-
-                    row = {
-                        "block_number": str(bn),
-                        "block_hash": str(block.get("hash") or ""),
-                        "timestamp": str(ts),
-                        "timestamp_utc": _to_iso_utc(ts),
-                        "date_utc": date_str,
-                        "base_fee_per_gas_wei": str(_parse_hex_optional(block.get("baseFeePerGas")) or ""),
-                        "gas_used": str(_parse_hex_optional(block.get("gasUsed")) or ""),
-                        "gas_limit": str(_parse_hex_optional(block.get("gasLimit")) or ""),
-                        "blob_gas_used": str(_parse_hex_optional(block.get("blobGasUsed")) or ""),
-                        "excess_blob_gas": str(_parse_hex_optional(block.get("excessBlobGas")) or ""),
-                    }
-                    w.writerow(row)
-                    counts["blocks_parsed"] += 1
-
-    if counts["blocks_missing_blob_fields_post_dencun"] > 0:
+    if not window_rows:
         raise SystemExit(
-            "Post-Dencun blocks are missing required blob header fields (provider not blob-ready?): "
-            f"missing_count={counts['blocks_missing_blob_fields_post_dencun']}"
+            "No blocks in canonical sample window "
+            f"{CANONICAL_SAMPLE_WINDOW_START.isoformat()}..{CANONICAL_SAMPLE_WINDOW_END.isoformat()}"
         )
-    return counts
+
+    pre_rows = [r for r in window_rows if int(r["block_number"]) < DENCUN_FORK_BLOCK_MAINNET]
+    post_rows = [r for r in window_rows if int(r["block_number"]) >= DENCUN_FORK_BLOCK_MAINNET]
+    if not pre_rows or not post_rows:
+        raise SystemExit(
+            "Sample requires both pre- and post-Dencun coverage; "
+            f"pre_rows={len(pre_rows)} post_rows={len(post_rows)}"
+        )
+
+    # Keep sample tiny and deterministic: nearest pre-fork block + first post-fork block.
+    pre_row = max(pre_rows, key=lambda r: int(r["block_number"]))
+    post_row = min(post_rows, key=lambda r: int(r["block_number"]))
+
+    sample_rows = [pre_row]
+    if int(post_row["block_number"]) != int(pre_row["block_number"]):
+        sample_rows.append(post_row)
+    sample_rows.sort(key=lambda r: int(r["block_number"]))
+
+    sample_meta: dict[str, int | str] = {
+        "rows_in_window": len(window_rows),
+        "rows_emitted": len(sample_rows),
+        "sample_window_start": CANONICAL_SAMPLE_WINDOW_START.isoformat(),
+        "sample_window_end": CANONICAL_SAMPLE_WINDOW_END.isoformat(),
+    }
+    return sample_rows, sample_meta
+
+
+def _write_sample_csv(*, out_path: Path, rows: list[dict[str, str]]) -> None:
+    ensure_dir(out_path.parent)
+    with out_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=PROCESSED_FIELDNAMES, lineterminator="\n")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({key: row.get(key, "") for key in PROCESSED_FIELDNAMES})
 
 
 def run_extract(
@@ -285,7 +439,9 @@ def run_extract(
     to_block: int | None,
     chunk_size: int,
     resume: bool,
-    out_csv: Path,
+    out_processed: Path,
+    write_sample: bool,
+    sample_out: Path,
     write_manifest: bool,
 ) -> int:
     try:
@@ -337,27 +493,63 @@ def run_extract(
         _write_blocks_jsonl_append_only(out_path, blocks)
         counts["chunks_written"] += 1
 
-    processed_counts = write_processed_blocks_csv(blocks_dir=raw_blocks_dir, out_csv=out_csv)
+    rows, processed_counts = _collect_processed_rows(blocks_dir=raw_blocks_dir)
+    _assert_processed_schema(rows)
+    _write_processed_table_csv_payload(out_path=out_processed, rows=rows)
+
+    sample_rows: list[dict[str, str]] = []
+    sample_meta: dict[str, int | str] = {"rows_emitted": 0}
+    if write_sample:
+        sample_rows, sample_meta = _build_sample_rows(rows)
+        _write_sample_csv(out_path=sample_out, rows=sample_rows)
 
     if write_manifest:
         raw_manifest = _write_raw_manifest(snapshot_dir=raw_blocks_dir, as_of=as_of)
+        outputs = [out_processed]
+        if write_sample:
+            outputs.append(sample_out)
         meta = {
             "range": {"start_block": start_block, "end_block": end_block, "latest_block": latest},
             "raw_counts": counts,
             "processed_counts": processed_counts,
-            "required_columns": [
-                "block_number",
-                "block_hash",
-                "timestamp_utc",
-                "base_fee_per_gas_wei",
-                "gas_used",
-                "blob_gas_used",
-                "excess_blob_gas",
-            ],
+            "schema_assertions": {
+                "required_columns": [
+                    "block_number",
+                    "block_hash",
+                    "timestamp_utc",
+                    "base_fee_per_gas_wei",
+                    "gas_used",
+                    "blob_gas_used",
+                    "excess_blob_gas",
+                ],
+                "post_dencun_boundary_block_mainnet": DENCUN_FORK_BLOCK_MAINNET,
+            },
+            "sample": sample_meta,
+            "output_format": {
+                "path": str(out_processed.resolve().relative_to(_repo_root().resolve())),
+                "note": "CSV payload written to .parquet filename for stdlib-only portability (no parquet dependency).",
+            },
         }
-        _write_processed_manifest(as_of=as_of, inputs=[raw_manifest], outputs=[out_csv], meta=meta)
+        _write_processed_manifest(as_of=as_of, inputs=[raw_manifest], outputs=outputs, meta=meta)
 
-    print(json.dumps({"ok": True, "as_of_utc_date": as_of.isoformat(), "raw_dir": str(raw_blocks_dir), "out_csv": str(out_csv), "counts": {**counts, **processed_counts}}, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "as_of_utc_date": as_of.isoformat(),
+                "raw_dir": str(raw_blocks_dir),
+                "out_processed": str(out_processed),
+                "sample_out": str(sample_out) if write_sample else None,
+                "counts": {
+                    **counts,
+                    **processed_counts,
+                    "sample_rows": len(sample_rows),
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 
@@ -371,7 +563,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--to-block", type=int, default=None, help="Optional end block (inclusive)")
     p.add_argument("--chunk-size", type=int, default=500, help="Blocks per raw snapshot chunk file")
     p.add_argument("--resume", action="store_true", help="Skip existing raw chunks instead of erroring")
-    p.add_argument("--out-csv", default="data/processed/l1/l1_blocks.csv", help="Processed CSV output path")
+    p.add_argument(
+        "--out-processed",
+        default="data/processed/l1/l1_blocks.parquet",
+        help="Processed output path (CSV payload; .parquet extension recommended by task contract)",
+    )
+    p.add_argument("--out-csv", default=None, help="Deprecated alias for --out-processed")
+    p.add_argument("--write-sample", action="store_true", help="Write deterministic canonical-window sample CSV")
+    p.add_argument("--sample-out", default="data/samples/l1/l1_blocks_sample.csv", help="Sample CSV output path")
     p.add_argument("--write-manifest", action="store_true", help="Write raw + processed manifests (append-only)")
     return p
 
@@ -381,8 +580,11 @@ def main(argv: list[str]) -> int:
     as_of = _parse_date(str(args.as_of), label="as_of")
     start_date = _parse_date(str(args.start_date), label="start_date") if args.start_date else None
     end_date = _parse_date(str(args.end_date), label="end_date") if args.end_date else None
-    out_csv = Path(args.out_csv)
-    out_csv_abs = out_csv if out_csv.is_absolute() else (_repo_root() / out_csv)
+    out_processed_raw = str(args.out_csv) if args.out_csv else str(args.out_processed)
+    out_processed = Path(out_processed_raw)
+    out_processed_abs = out_processed if out_processed.is_absolute() else (_repo_root() / out_processed)
+    sample_out = Path(str(args.sample_out))
+    sample_out_abs = sample_out if sample_out.is_absolute() else (_repo_root() / sample_out)
 
     return run_extract(
         rpc_url=str(args.rpc_url) if args.rpc_url else None,
@@ -393,7 +595,9 @@ def main(argv: list[str]) -> int:
         to_block=args.to_block,
         chunk_size=int(args.chunk_size),
         resume=bool(args.resume),
-        out_csv=out_csv_abs,
+        out_processed=out_processed_abs,
+        write_sample=bool(args.write_sample),
+        sample_out=sample_out_abs,
         write_manifest=bool(args.write_manifest),
     )
 

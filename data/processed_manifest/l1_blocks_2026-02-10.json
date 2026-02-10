@@ -1,0 +1,75 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "created_at_utc": "2026-02-10T10:48:15.894407+00:00",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "inputs": [
+    {
+      "bytes": 654,
+      "path": "data/raw_manifest/l1_blocks_2026-02-10.json",
+      "sha256": "2ae10344ac4024c8b3e833945b839a3f9ac1c98fa3d2122abfd5700dd716c7e3"
+    }
+  ],
+  "meta": {
+    "output_format": {
+      "note": "CSV payload written to .parquet filename for stdlib-only portability (no parquet dependency).",
+      "path": "data/processed/l1/l1_blocks.parquet"
+    },
+    "processed_counts": {
+      "blocks_missing_blob_fields_post_dencun": 0,
+      "blocks_parsed": 41,
+      "blocks_post_dencun": 34
+    },
+    "range": {
+      "end_block": 19426620,
+      "latest_block": 24425874,
+      "start_block": 19426580
+    },
+    "raw_counts": {
+      "blocks_fetched": 41,
+      "chunks_skipped": 0,
+      "chunks_total": 1,
+      "chunks_written": 1
+    },
+    "sample": {
+      "rows_emitted": 2,
+      "rows_in_window": 41,
+      "sample_window_end": "2024-04-30",
+      "sample_window_start": "2024-02-20"
+    },
+    "schema_assertions": {
+      "post_dencun_boundary_block_mainnet": 19426587,
+      "required_columns": [
+        "block_number",
+        "block_hash",
+        "timestamp_utc",
+        "base_fee_per_gas_wei",
+        "gas_used",
+        "blob_gas_used",
+        "excess_blob_gas"
+      ]
+    }
+  },
+  "name": "l1_blocks",
+  "outputs": [
+    {
+      "bytes": 6597,
+      "path": "data/processed/l1/l1_blocks.parquet",
+      "sha256": "7bc3bc1cbec46f62b5a0470df12e3ee87a698b88521eb2bb41fc772ecd5c56d6"
+    },
+    {
+      "bytes": 440,
+      "path": "data/samples/l1/l1_blocks_sample.csv",
+      "sha256": "6f32c2cf2e38e99c999cf06aa30a7da4c5b318375f90997bfa332512181d59eb"
+    }
+  ],
+  "schema_version": 1,
+  "transform": {
+    "command": "python src/etl/l1_extract_blocks.py --as-of 2026-02-10 --from-block 19426580 --to-block 19426620 --chunk-size 64 --write-sample --write-manifest",
+    "git_sha": null,
+    "script_path": "scripts/make_processed_manifest.py"
+  }
+}

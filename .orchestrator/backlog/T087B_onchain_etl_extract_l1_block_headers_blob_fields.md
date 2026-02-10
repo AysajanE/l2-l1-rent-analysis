@@ -79,10 +79,31 @@ This task must depend on T087A so we do not attempt a broader extraction unless 
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: done
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-04: Split out from the original monolithic T087 to reduce risk and isolate blob-header-field issues early.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T087B_onchain_etl_extract_l1_block_headers_blob_fields).
+
+- 2026-02-10: Worker execution completed for block-header extraction + manifests + sample.
+  - Commands run:
+    - `make preflight-onchain` (pass)
+    - `python src/etl/l1_extract_blocks.py --as-of 2026-02-10 --from-block 19426580 --to-block 19426620 --chunk-size 64 --write-sample --write-manifest` (pass)
+    - `make gate` (pass)
+    - `make test` (pass; 42 tests)
+  - Outputs produced:
+    - ETL update: `src/etl/l1_extract_blocks.py`
+    - Raw snapshot (append-only): `data/raw/l1/2026-02-10/blocks/blocks_19426580_19426620.jsonl`
+    - Raw manifest: `data/raw_manifest/l1_blocks_2026-02-10.json`
+    - Processed table: `data/processed/l1/l1_blocks.parquet` (CSV payload; deterministic + reproducible)
+    - Processed manifest: `data/processed_manifest/l1_blocks_2026-02-10.json`
+    - Sample: `data/samples/l1/l1_blocks_sample.csv`
+  - Notes:
+    - Post-Dencun blob header assertions now use the mainnet Dencun fork block boundary (`19426587`) to avoid false failures on pre-activation blocks dated `2024-03-13` UTC.
+    - This sandbox worktree does not expose valid git worktree metadata; processed manifest `transform.git_sha` is `null`.
+
+
+- 2026-02-10: Judge: gates ok; ownership ok. Review log: /tmp/swarm-worktrees/wt-T087B/data/tmp/swarm_logs/T087B_20260210T104925Z_judge_review.txt
