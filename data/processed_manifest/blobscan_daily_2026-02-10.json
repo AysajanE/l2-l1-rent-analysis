@@ -1,0 +1,98 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "created_at_utc": "2026-02-10T00:35:34.273007+00:00",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "inputs": [
+    {
+      "bytes": 922,
+      "path": "data/raw_manifest/blobscan_2026-02-10.json",
+      "sha256": "ad64b7d0b62af4d00114642d93d9e0231638d6412e3b4fdfcae400ebf40e510b"
+    }
+  ],
+  "meta": {
+    "counts": {
+      "rows_sample_window": 48,
+      "rows_total": 698
+    },
+    "date_range_utc": {
+      "end": "2026-02-09",
+      "start": "2024-03-14"
+    },
+    "output_format": {
+      "note": "CSV payload written to .parquet filename for stdlib-only portability (no parquet dependency).",
+      "path": "data/processed/blobscan/blobscan_daily.parquet"
+    },
+    "raw_snapshot": {
+      "dir": "data/raw/blobscan/2026-02-10",
+      "files": [
+        "data/raw/blobscan/2026-02-10/stats_timeseries_global.json",
+        "data/raw/blobscan/2026-02-10/stats_overall.json",
+        "data/raw/blobscan/2026-02-10/request_meta.json"
+      ]
+    },
+    "sample_window_utc": {
+      "actual_end": "2024-04-30",
+      "actual_start": "2024-03-14",
+      "requested_end": "2024-04-30",
+      "requested_start": "2024-02-20"
+    },
+    "schema_assertions": {
+      "all_columns": [
+        "date_utc",
+        "l1_blob_base_fee_wei",
+        "l1_blob_base_fee_gwei",
+        "l1_blob_gas_used",
+        "l1_blob_tx_count",
+        "blobs_count"
+      ],
+      "base_fee_derivation": "l1_blob_base_fee_wei = round_half_up(avgBlobGasPrice)",
+      "gwei_note": "l1_blob_base_fee_gwei is presentation-only, derived from wei.",
+      "integer_columns": [
+        "l1_blob_base_fee_wei",
+        "l1_blob_gas_used",
+        "l1_blob_tx_count",
+        "blobs_count"
+      ],
+      "required_columns": [
+        "date_utc",
+        "l1_blob_base_fee_wei",
+        "l1_blob_gas_used"
+      ]
+    },
+    "source": {
+      "docs_url": "https://docs.blobscan.com/docs/api",
+      "name": "blobscan",
+      "overall_endpoint": "https://api.blobscan.com/stats/overall",
+      "timeseries_endpoint": "https://api.blobscan.com/stats/timeseries",
+      "timeseries_metrics": [
+        "avgBlobGasPrice",
+        "totalBlobGasUsed",
+        "totalTransactions",
+        "totalBlobs"
+      ]
+    }
+  },
+  "name": "blobscan_daily",
+  "outputs": [
+    {
+      "bytes": 35449,
+      "path": "data/processed/blobscan/blobscan_daily.parquet",
+      "sha256": "4e3343e102ff6f95238613801d6378b05c9fbfd28fd0d10168299f1655ebbc5a"
+    },
+    {
+      "bytes": 2432,
+      "path": "data/samples/blobscan/blobscan_daily_sample.csv",
+      "sha256": "7e48ba94e26d3509e6b201ac595f4f81c31e0190479009ef948ed146c50dceb4"
+    }
+  ],
+  "schema_version": 1,
+  "transform": {
+    "command": "python src/etl/blobscan_fetch.py --run-date 2026-02-10",
+    "git_sha": null,
+    "script_path": "scripts/make_processed_manifest.py"
+  }
+}
