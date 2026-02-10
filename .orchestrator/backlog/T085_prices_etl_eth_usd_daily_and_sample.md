@@ -66,10 +66,11 @@ USD series are explicitly secondary in `docs/protocol.md`, but are useful for in
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to support secondary USD conversions and figures.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T085_prices_etl_eth_usd_daily_and_sample).
