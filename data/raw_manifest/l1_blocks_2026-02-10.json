@@ -1,0 +1,18 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "command": "python src/etl/l1_extract_blocks.py --as-of 2026-02-10 --from-block 19426580 --to-block 19426620 --chunk-size 64 --write-sample --write-manifest",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "fetched_at_utc": "2026-02-10T10:48:15.860713+00:00",
+  "files": [
+    {
+      "bytes": 589497,
+      "path": "data/raw/l1/2026-02-10/blocks/blocks_19426580_19426620.jsonl",
+      "sha256": "c4866f0a1942b092a3b85ed220681bd08fc77e08364039155933dd75d00d53ff"
+    }
+  ],
+  "source": "l1_blocks"
+}
