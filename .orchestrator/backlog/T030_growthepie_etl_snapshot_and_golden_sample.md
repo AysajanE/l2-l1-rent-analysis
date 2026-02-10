@@ -89,7 +89,7 @@ This task builds a reproducible ETL that:
 
 ## Status
 - State: blocked
-- Last updated: 2026-02-06
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-22: Task created (Planner) as first real W1 ETL vertical slice.
@@ -117,3 +117,24 @@ This task builds a reproducible ETL that:
 
 
 - 2026-02-06: @human Judge blocked: gates_failed, path_ownership_violation. Review log: /Users/aeziz-local/Research/Projects-05-Ethereum Blockchain Economic Analysis/Causal Influence of L2 Scaling Solutions on Ethereum L1 Mainnet Congestion/L1-L2-causal-influence-analysis/wt-T030/data/tmp/swarm_logs/T030_20260206T172429Z_judge_review.txt
+
+- 2026-02-10: Worker reran T030 ETL and gates on current worktree state.
+  - Snapshot + manifest (append-only):
+    - `python src/etl/growthepie_fetch.py --run-date 2026-02-10 --write-raw-manifest`
+    - Created `data/raw/growthepie/2026-02-10/` and `data/raw_manifest/growthepie_2026-02-10.json`.
+  - Deterministic offline rebuild checks:
+    - `python src/etl/growthepie_fetch.py --from-snapshot data/raw/growthepie/2026-02-10 --end-date 2026-02-10 --out-processed data/processed/growthepie/vendor_daily_rollup_panel.csv`
+    - `python src/etl/growthepie_fetch.py --from-snapshot data/raw/growthepie/2026-02-10 --end-date 2026-02-10 --out-processed /tmp/vendor_daily_rollup_panel_rebuild_t030.csv`
+    - `cmp -s data/processed/growthepie/vendor_daily_rollup_panel.csv /tmp/vendor_daily_rollup_panel_rebuild_t030.csv` => identical.
+    - Sample rebuild comparison:
+      - `python src/etl/growthepie_fetch.py --from-snapshot data/raw/growthepie/2026-02-10 --end-date 2026-02-10 --out-processed /tmp/vendor_daily_rollup_panel_rebuild_with_sample_t030.csv --write-sample --sample-out /tmp/vendor_daily_rollup_panel_sample_rebuild_t030.csv`
+      - `cmp -s data/samples/growthepie/vendor_daily_rollup_panel_sample.csv /tmp/vendor_daily_rollup_panel_sample_rebuild_t030.csv` => identical (no sample update needed).
+  - Gate run:
+    - `make gate` fails only on `processed_manifest_consistency` for missing outputs outside T030 `allowed_paths`:
+      - `data/processed/panels/daily_rollup_panel_v1_sample.csv`
+      - `data/processed/onchain/rollup_costs_daily.csv`
+      - `data/processed/onchain/rollup_costs_decomposition_daily.csv`
+  - @human: T030 remains blocked by cross-task manifest outputs not owned by W1/T030; either permit worker to materialize these out-of-scope files or accept T030 as complete on in-scope criteria.
+
+
+- 2026-02-10: @human Judge blocked: gates_failed, path_ownership_violation. Review log: /tmp/swarm-worktrees/wt-T030/data/tmp/swarm_logs/T030_20260210T002146Z_judge_review.txt
