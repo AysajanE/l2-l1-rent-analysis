@@ -68,11 +68,12 @@ This task adds a deterministic, offline analysis script that produces a sample-m
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-05: Task created (Planner) to close the “decomposition plots over time” completeness gap using deterministic sample-mode artifacts.
 
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T101_analysis_rent_decomposition_plots_sample).
