@@ -69,11 +69,12 @@ This task produces sample-mode outputs from the enriched v2 panel sample so the 
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-02-05: Task created (Planner) to close the “burn vs issuance time series” completeness gap with deterministic sample artifacts.
 
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T103_analysis_burn_vs_issuance_timeseries_sample).
