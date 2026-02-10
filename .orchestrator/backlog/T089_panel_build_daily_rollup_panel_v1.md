@@ -74,10 +74,11 @@ at the grain (`date_utc`, `rollup_id`), respecting the protocol missingness rule
 - [ ] `make gate` passes
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-02-05
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to produce the canonical STR-ready dataset from authoritative sources.
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T089_panel_build_daily_rollup_panel_v1).
