@@ -1703,7 +1703,18 @@ def cmd_tick(args: argparse.Namespace) -> int:
             print(f"[dry-run] would start {task.task_id}: {task.title}")
             continue
 
-        wt_path, branch = ensure_worktree(task=task, worktree_parent=wt_parent, base_ref=args.base_branch)
+        try:
+            wt_path, branch = ensure_worktree(task=task, worktree_parent=wt_parent, base_ref=args.base_branch)
+        except SystemExit as exc:
+            # Most common cause: a task was started elsewhere (or a previous run left a worktree behind).
+            # Don't kill the supervisor loop; log and let the next tick reconcile via claimed branches/PRs.
+            print(f"[tick] skip {task.task_id}: {exc}", file=sys.stderr)
+            continue
+        except subprocess.CalledProcessError as exc:
+            # Keep unattended runs resilient to rare git worktree races (e.g., two ticks at once).
+            print(f"[tick] skip {task.task_id}: worktree preparation failed ({exc})", file=sys.stderr)
+            continue
+
         tasks_started.append({"task_id": task.task_id, "branch": branch, "worktree": str(wt_path)})
 
         run_cmd = [
