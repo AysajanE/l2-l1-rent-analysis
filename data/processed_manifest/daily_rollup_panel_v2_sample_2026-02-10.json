@@ -1,0 +1,161 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "created_at_utc": "2026-02-10T11:00:22.472448+00:00",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "inputs": [
+    {
+      "bytes": 3835,
+      "path": "contracts/schemas/panel_schema_str_v2.yaml",
+      "sha256": "853162d965009072c95e883edf6f410ddc50b8e193af5ed46d502cca6b7e499b"
+    },
+    {
+      "bytes": 2952,
+      "path": "data/processed_manifest/blobscan_daily_2026-02-10.json",
+      "sha256": "ba09151c62f23b8bb36db6625e5f337028ed7f80728f37d8a353c61bcb3b6554"
+    },
+    {
+      "bytes": 4338,
+      "path": "data/processed_manifest/daily_rollup_panel_v1_sample_2026-02-10.json",
+      "sha256": "e29ae8298c772abeb5f8495573769776af40774d5bc4afb5866c07171a26a667"
+    },
+    {
+      "bytes": 2677,
+      "path": "data/processed_manifest/issuance_daily_2026-02-10.json",
+      "sha256": "6b7ce87b6a3274ec97743fddd5b73062f03a3b9dd2029215dde4231659b961db"
+    },
+    {
+      "bytes": 1041,
+      "path": "data/processed_manifest/prices_daily_2026-02-10.json",
+      "sha256": "ce5d44f2444fd6de6adc5ad2ded14ffb17899c0df893a99db45726c9b7329720"
+    },
+    {
+      "bytes": 27148,
+      "path": "data/samples/panels/daily_rollup_panel_v2_sample.csv",
+      "sha256": "6cec5c25cf5207aaa9b914dcb56fdad175a028fa2cb6f2553b8b550a4a5d0d04"
+    }
+  ],
+  "meta": {
+    "contract_assertions": {
+      "field_count": 17,
+      "required_field_count": 5,
+      "schema_path": "/tmp/swarm-worktrees/wt-T090/contracts/schemas/panel_schema_str_v2.yaml"
+    },
+    "counts": {
+      "date_range_utc": {
+        "end": "2024-04-30",
+        "start": "2024-02-20"
+      },
+      "rollup_count": 3,
+      "row_count": 213
+    },
+    "join_semantics": {
+      "base_grain": [
+        "date_utc",
+        "rollup_id"
+      ],
+      "conflict_policy": "fail on conflicting non-empty values",
+      "enrichment_rule": "left-join enrichment inputs onto base panel",
+      "key_modes": {
+        "date": "date_utc duplicated across rollups",
+        "date_rollup": "(date_utc, rollup_id)"
+      },
+      "missingness_policy": "blank enrichment values never overwrite existing non-empty values"
+    },
+    "joins": {
+      "decomposition": {
+        "assigned_values": 441,
+        "conflict_policy": "fail_on_nonempty_conflict",
+        "fields": [
+          "rent_base_fee_burn_eth",
+          "rent_blob_fee_burn_eth",
+          "rent_priority_fee_eth",
+          "rent_blob_fee_burn_wei",
+          "rollup_blob_gas_used"
+        ],
+        "input_rows": 213,
+        "join_type": "left_join_on_(date_utc,rollup_id)",
+        "key_mode": "date_rollup",
+        "matched_rows": 213,
+        "path": "/tmp/swarm-worktrees/wt-T090/data/samples/panels/daily_rollup_panel_v2_sample.csv",
+        "unmatched_rows": 0,
+        "updated_rows": 147
+      },
+      "issuance": {
+        "assigned_values": 0,
+        "conflict_policy": "fail_on_nonempty_conflict",
+        "fields": [
+          "issuance_eth"
+        ],
+        "input_rows": 213,
+        "join_type": "left_join_on_(date_utc,rollup_id)_or_date_only",
+        "key_mode": "date_rollup",
+        "matched_rows": 213,
+        "path": "/tmp/swarm-worktrees/wt-T090/data/samples/panels/daily_rollup_panel_v2_sample.csv",
+        "unmatched_rows": 0,
+        "updated_rows": 0
+      },
+      "l1_regime": {
+        "assigned_values": 507,
+        "conflict_policy": "fail_on_nonempty_conflict",
+        "fields": [
+          "l1_base_fee_per_gas_wei",
+          "l1_blob_base_fee_wei",
+          "l1_blob_gas_used"
+        ],
+        "input_rows": 213,
+        "join_type": "left_join_on_(date_utc,rollup_id)_or_date_only",
+        "key_mode": "date_rollup",
+        "matched_rows": 213,
+        "path": "/tmp/swarm-worktrees/wt-T090/data/samples/panels/daily_rollup_panel_v2_sample.csv",
+        "unmatched_rows": 0,
+        "updated_rows": 213
+      },
+      "prices": {
+        "assigned_values": 0,
+        "conflict_policy": "fail_on_nonempty_conflict",
+        "fields": [
+          "eth_usd_close"
+        ],
+        "input_rows": 213,
+        "join_type": "left_join_on_(date_utc,rollup_id)_or_date_only",
+        "key_mode": "date_rollup",
+        "matched_rows": 213,
+        "path": "/tmp/swarm-worktrees/wt-T090/data/samples/panels/daily_rollup_panel_v2_sample.csv",
+        "unmatched_rows": 0,
+        "updated_rows": 0
+      }
+    },
+    "output_format": {
+      "note": null,
+      "path": "/tmp/swarm-worktrees/wt-T090/data/processed/panels/daily_rollup_panel_v2_sample.csv",
+      "writer": "csv"
+    },
+    "panel_schema_version": 2,
+    "sample_mode": true,
+    "schema_path": "contracts/schemas/panel_schema_str_v2.yaml",
+    "schema_sha256": "853162d965009072c95e883edf6f410ddc50b8e193af5ed46d502cca6b7e499b"
+  },
+  "name": "daily_rollup_panel_v2_sample",
+  "outputs": [
+    {
+      "bytes": 27148,
+      "path": "data/processed/panels/daily_rollup_panel_v2_sample.csv",
+      "sha256": "6cec5c25cf5207aaa9b914dcb56fdad175a028fa2cb6f2553b8b550a4a5d0d04"
+    },
+    {
+      "bytes": 27148,
+      "path": "data/samples/panels/daily_rollup_panel_v2_sample.csv",
+      "sha256": "6cec5c25cf5207aaa9b914dcb56fdad175a028fa2cb6f2553b8b550a4a5d0d04"
+    }
+  ],
+  "schema_version": 1,
+  "transform": {
+    "command": "python src/etl/panel_build_daily_rollup_panel_v2.py --sample --write-sample --write-manifest --as-of 2026-02-10 --manifest-inputs data/processed_manifest/daily_rollup_panel_v1_sample_2026-02-10.json data/processed_manifest/blobscan_daily_2026-02-10.json data/processed_manifest/prices_daily_2026-02-10.json data/processed_manifest/issuance_daily_2026-02-10.json",
+    "git_sha": null,
+    "script_path": "scripts/make_processed_manifest.py"
+  }
+}
