@@ -60,11 +60,12 @@ Unlike the initial pilot metric task (sample-only), this task targets the **post
 - [ ] `make gate` and `make test` pass
 
 ## Status
-
-- State: backlog
-- Last updated: 2026-01-30
-
+- State: active
+- Last updated: 2026-02-10
 ## Notes / Decisions
 
 - 2026-01-30: Task created (Planner) to lock STR math on the canonical joined panel before full-scale analysis.
 
+
+
+- 2026-02-10: Claimed by swarm runner; starting worker (branch: T092_metrics_str_from_daily_rollup_panel_and_tests).
