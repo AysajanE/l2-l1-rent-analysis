@@ -1,0 +1,23 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "command": "python src/etl/l1_extract_txs_receipts.py --as-of 2026-02-10 --from-block 19557289 --to-block 19557340 --chunk-size 100 --write-manifest",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "fetched_at_utc": "2026-02-10T10:54:09.418267+00:00",
+  "files": [
+    {
+      "bytes": 28765,
+      "path": "data/raw/l1/2026-02-10/receipts/receipts_19557289_19557340.jsonl",
+      "sha256": "5995d576b010974d1df612afe1098aa5efc3e638afd3245396a3d10c6a9ea21b"
+    },
+    {
+      "bytes": 711825,
+      "path": "data/raw/l1/2026-02-10/txs/txs_19557289_19557340.jsonl",
+      "sha256": "c9435d547a8026158b8a1b78141480b9e5aea6cb38f2eedd70d8aeae34d19dd6"
+    }
+  ],
+  "source": "l1_txs_receipts"
+}
