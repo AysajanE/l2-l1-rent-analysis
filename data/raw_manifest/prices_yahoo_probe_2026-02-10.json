@@ -1,0 +1,23 @@
+{
+  "as_of_utc_date": "2026-02-10",
+  "command": "python src/etl/prices_fetch.py --run-date 2026-02-10 --source yahoo --write-raw --overwrite",
+  "environment": {
+    "platform": "Linux-6.12.67-linuxkit-aarch64-with-glibc2.36",
+    "python_implementation": "CPython",
+    "python_version": "3.11.13"
+  },
+  "fetched_at_utc": "2026-02-10T00:37:22.920589+00:00",
+  "files": [
+    {
+      "bytes": 601808,
+      "path": "data/raw/prices/2026-02-10/cryptocompare/eth_usd_histoday.json",
+      "sha256": "324c651ec746d15c1f7eb9e98ecb5276a88fc0d978c2ab492e84aa9a7db7ffd9"
+    },
+    {
+      "bytes": 357574,
+      "path": "data/raw/prices/2026-02-10/yahoo_eth_usd_chart.json",
+      "sha256": "a71b38c317d77e156343fe96472ea18260a2f9d918edcf63645436c871a44693"
+    }
+  ],
+  "source": "prices_yahoo_probe"
+}
