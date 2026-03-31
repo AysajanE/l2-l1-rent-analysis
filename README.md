@@ -1,51 +1,66 @@
 # L2–L1 Rent Analysis (Ethereum)
 
-This repo contains an empirical research project measuring Ethereum L1’s “take rate” on rollup economics: how much rollups pay Ethereum L1 (“rent”) relative to the fees they collect from L2 users.
+Empirical research repository for measuring how much of rollup economics is captured by Ethereum Layer 1.
 
-## Primary metric: Settlement Take Rate (STR)
+The central object in this project is **Settlement Take Rate (STR)**: the share of rollup user fees that ultimately becomes Ethereum L1 rent. This repo is organized as a protocol-locked research system rather than an ad hoc notebook collection, so metric definitions, source priority, units, tolerances, and edge cases stay auditable over time.
 
-For day *t* (UTC):
+## Core metric
+
+For day `t` in UTC:
 
 `STR_t = (Σ_i RentPaid_{i,t}) / (Σ_i L2Fees_{i,t})`
 
-Canonical definitions, units, regimes, source priority, tolerances, and edge-case rules are locked in `docs/protocol.md`.
+The canonical definition lives in `docs/protocol.md`.
 
 ## Research goals
 
-- Trend STR over time (2022-01-01 → present).
-- Explain mechanisms via decomposition (burn vs tips; blob vs execution; pre-/post-Dencun).
-- Evaluate policy counterfactuals (e.g., blob-fee floor/reserve mechanism such as EIP-7918).
+- measure STR over time
+- decompose rent into components such as burn, tips, blob costs, and execution costs
+- compare regimes before and after major protocol changes such as Dencun
+- study counterfactual policy ideas, including blob-fee floor or reserve mechanisms
 
-## Data sources (priority)
+## Source priority
 
-When sources disagree for the same concept, the protocol prioritizes:
+When sources disagree, the project prioritizes:
 
-1. On-chain computed Ethereum L1 costs (authoritative for `RentPaid` and decomposition).
-2. growthepie exports (primary for `L2Fees`; secondary vendor `rent_paid/profit` series for triangulation).
-3. L2BEAT costs series (triangulation / sanity check).
+1. on-chain computed Ethereum L1 costs
+2. growthepie exports for L2 fees and related triangulation series
+3. L2BEAT cost series for sanity checks
 
-On-chain rent computation is supported via **BigQuery public Ethereum tables** (preferred for unattended runs) and an RPC-based fallback path.
+On-chain rent computation is supported through BigQuery public Ethereum tables and an RPC fallback path.
 
-Blobscan may be used for blob-market aggregates and cross-checks when available.
+## Repository structure
 
-## Repo structure
+- `docs/`: research plans, runbooks, and the protocol lock
+- `contracts/`: schemas, assumptions, data dictionary, and canonical modeling artifacts
+- `registry/`: rollup universe definitions and attribution evidence
+- `src/`: ETL, validation, and analysis code
+- `data/`: local artifact layout and manifests
+- `reports/`: generated research outputs
+- `.orchestrator/`: task coordination files for the multi-agent workflow
 
-- `docs/` — research plan + runbooks; **protocol lock**: `docs/protocol.md`
-- `contracts/` — canonical schemas + data dictionary (e.g., `contracts/schemas/panel_schema_str_v1.yaml`)
-- `registry/` — rollup universe + attribution evidence (`registry/rollup_registry_v1.csv`)
-- `src/etl/` — ingestion/extraction code (networked; must snapshot inputs)
-- `src/validation/` — deterministic checks (no network)
-- `src/analysis/` — deterministic figures/tables (no network)
-- `data/raw/` and `data/processed/` — gitignored large artifacts; provenance tracked in `data/raw_manifest/` and `data/processed_manifest/`
-- `reports/` — generated research outputs (validation, figures, tables, status, paper, deck)
-
-## Repro / quality gates
+## Reproducibility and gates
 
 ```bash
 make gate
 make test
 ```
 
-## Project workflow (tasks)
+These commands are the fastest way to check that the repo remains internally consistent after changes.
 
-Work is organized as explicit tasks under `.orchestrator/` with ownership boundaries to support parallel execution. For operational guidance, see `docs/runbook_swarm.md` and `docs/runbook_swarm_automation.md`.
+## Why this repo is distinctive
+
+This project is not just "crypto analysis" in the abstract. It combines:
+
+- metric design
+- protocol-locked research definitions
+- deterministic validation
+- explicit source priority rules
+- coordination discipline for larger empirical workflows
+
+## Operational notes
+
+The repo uses explicit tasks under `.orchestrator/` to support parallel work with clear ownership boundaries. For operating guidance, see:
+
+- `docs/runbook_swarm.md`
+- `docs/runbook_swarm_automation.md`
